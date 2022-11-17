@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package webcammixer;
+option java_package = "net.conradwood.apis.webcammixer";
+import "golang.conradwood.net/apis/common/common.proto";
+
+// break down one or more images into transportable chunks
+message ImageStream {
+  bool NextImage=1; // if this changes the current image is finished and a new one starts
+  bytes Data=2; // upto 8k of data for this image
+}
+
+message VideoDeviceDef {
+  string VideoDeviceName=1;
+}
+
+// break down one or more frames into transportable chunks
+message FrameStream {
+  bool NextImage=1; // if this changes the current frame is finished and a new one starts
+  bytes Data=2; // upto 8k of data for this frame
+}
+
+message LoopbackInfo {
+  string DeviceName=1; //e.g. /dev/video2
+  uint32 Width=2;
+  uint32 Height=3;
+  uint32 PixelFormat=4;
+}
+message IdleTextRequest {
+  string Text=1;
+}
+// feed an image to v4l2loopback
+service WebCamMixer {
+  // send one or more images to v4l
+  rpc SendImages(stream ImageStream) returns (common.Void);
+  /*
+ send one or more frames (that is images converted to v4l-out format) to v4l
+no conversion will be done on this frame.
+mostly useful for testing converters
+  */ 
+  rpc SendFrames(stream FrameStream) returns (common.Void);
+  // connect to a video device
+  rpc SendVideoDevice(VideoDeviceDef) returns (common.Void);
+  // Stop sending
+  rpc StopSource(common.Void) returns (common.Void);
+  // get loopback config info
+  rpc GetLoopbackInfo(common.Void) returns (LoopbackInfo);
+  // set idle text
+  rpc SetIdleText(IdleTextRequest) returns (common.Void);
+}
+
+
