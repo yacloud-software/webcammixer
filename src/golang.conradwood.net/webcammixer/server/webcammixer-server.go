@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"golang.conradwood.net/apis/common"
 	pb "golang.conradwood.net/apis/webcammixer"
+	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/server"
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/converters"
@@ -65,6 +66,9 @@ func (e *echoServer) SendVideoDevice(ctx context.Context, req *pb.VideoDeviceDef
 		return nil, fmt.Errorf("not ready yet - try again later")
 	}
 	fmt.Printf("Sending from device %s\n", req.VideoDeviceName)
+	if req.VideoDeviceName == loopdev.DeviceName {
+		return nil, errors.InvalidArgs(ctx, "loopback device cannot be source", "loopback device cannot be source")
+	}
 	h, w := defaults.GetDimensions()
 	sav, err := SourceActivateVideoDef(req.VideoDeviceName, h, w) // starts a thread reading from this video device
 	if err != nil {
