@@ -25,7 +25,7 @@ import (
 var (
 	debug      = flag.Bool("debug", false, "debug mode")
 	pr         = utils.ProgressReporter{}
-	port       = flag.Int("port", 4100, "The grpc server port")
+	port       = flag.Int("port", 4190, "The grpc server port")
 	frame_chan = make(chan []byte, 5)
 )
 
