@@ -5,6 +5,7 @@ import (
 	"github.com/vladimirvivien/go4vl/device"
 	"github.com/vladimirvivien/go4vl/v4l2"
 	"io/ioutil"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -58,7 +59,22 @@ func Detect() ([]*WebCamInfo, error) {
 		//		fmt.Printf("%s Card: %s\n", wci.DeviceName, wci.Capabilities.Card)
 	}
 	wg.Wait()
+	sort.Slice(res, func(i, j int) bool {
+		return res[i].DeviceName < res[j].DeviceName
+	})
+
 	return res, nil
+}
+
+// this is just horrible...
+func (w *WebCamInfo) IsCaptureDevice() bool {
+	for _, cd := range w.Capabilities.GetDeviceCapDescriptions() {
+		s := strings.ToLower(fmt.Sprintf("%v", cd))
+		if strings.Contains(s, "video capture") {
+			return true
+		}
+	}
+	return false
 }
 func GetWebCamInfo(devicename string) *WebCamInfo {
 	webcam_lock.Lock()

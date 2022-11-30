@@ -28,9 +28,16 @@ func Start() error {
 	}
 	var wi_loop *webcam.WebCamInfo
 	t := utils.Table{}
-	t.AddHeaders("Device", "Driver", "Card", "Bus")
+	t.AddHeaders("Device", "Capture", "Driver", "Card", "Bus")
 	for _, w := range wl {
 		t.AddString(w.DeviceName)
+
+		s := "no"
+		if w.IsCaptureDevice() {
+			s = "yes"
+		}
+		t.AddString(s)
+
 		if w.OpenErr != nil {
 			t.AddString(fmt.Sprintf(" Error: %s\n", w.OpenErr))
 			t.NewRow()
@@ -40,6 +47,8 @@ func Start() error {
 		t.AddString(cap.Driver)
 		t.AddString(cap.Card)
 		t.AddString(cap.BusInfo)
+
+		//		t.AddString(fmt.Sprintf("%v %v", w.Capabilities.Capabilities, w.Capabilities.DeviceCapabilities))
 		t.NewRow()
 		if strings.Contains(cap.Driver, "loopback") {
 			wi_loop = w
