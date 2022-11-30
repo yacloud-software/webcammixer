@@ -41,8 +41,8 @@ mostly useful for testing converters
   rpc SendFrames(stream FrameStream) returns (common.Void);
   // connect to a video device
   rpc SendVideoDevice(VideoDeviceDef) returns (common.Void);
-  // Stop sending
-  rpc StopSource(common.Void) returns (common.Void);
+  // switch to "idle"
+  rpc SwitchToIdle(common.Void) returns (common.Void);
   // get loopback config info
   rpc GetLoopbackInfo(common.Void) returns (LoopbackInfo);
   // set idle text
