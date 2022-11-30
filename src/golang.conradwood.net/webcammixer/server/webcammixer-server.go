@@ -78,7 +78,14 @@ func (e *echoServer) SendVideoDevice(ctx context.Context, req *pb.VideoDeviceDef
 	loopdev.SetTimingSource(sav)
 	return &common.Void{}, nil
 }
-func (e *echoServer) StopSource(ctx context.Context, req *common.Void) (*common.Void, error) {
+func (e *echoServer) SwitchToIdle(ctx context.Context, req *common.Void) (*common.Void, error) {
+	mfp := mixerapp.NewManualFrameProvider()
+	loopdev := mixerapp.GetLoopDev()
+	if loopdev == nil {
+		return nil, fmt.Errorf("not ready yet - try again later")
+	}
+	loopdev.SetProvider(mfp)
+	loopdev.SetTimingSource(mfp)
 	return &common.Void{}, nil
 }
 func (e *echoServer) SendFrames(srv pb.WebCamMixer_SendFramesServer) error {

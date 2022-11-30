@@ -18,7 +18,7 @@ var (
 	send_images = flag.String("send_images", "", "send all pix in this `directory`")
 	send_frames = flag.String("send_frames", "", "send all frames in this `directory`")
 	videocam    = flag.String("videodev", "", "if set, connect loopback to this `/dev/videoX`")
-	stopvideo   = flag.Bool("stopvideo", false, "if true stop video source")
+	stopvideo   = flag.Bool("idle", false, "switch to idle source")
 	echoClient  pb.WebCamMixerClient
 )
 
@@ -71,7 +71,7 @@ func SetVideoCam() error {
 }
 func StopVideoCam() error {
 	ctx := authremote.Context()
-	_, err := pb.GetWebCamMixerClient().StopSource(ctx, &common.Void{})
+	_, err := pb.GetWebCamMixerClient().SwitchToIdle(ctx, &common.Void{})
 	return err
 }
 func SetText() error {

@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	idle_sleep     = flag.Duration("idle_sleep", time.Duration(1)*time.Second, "time to sleep between sending idle image updates")
 	idle_text      = flag.String("idle_text", "", "if set, display an idle text instead of idle image")
 	loopback_image = flag.String("idle_image", "/tmp/idle_image.jpeg", "set this to the image to be served whilst no camera is attached")
 )
@@ -79,7 +80,7 @@ func (ifp *IdleFrameProvider) Run() error {
 			// notify loopdev that we have a new frame
 			c <- true
 		}
-		time.Sleep(time.Duration(500) * time.Millisecond)
+		time.Sleep(*idle_sleep)
 	}
 }
 func (ifp *IdleFrameProvider) createIdleImageText() error {
@@ -87,6 +88,7 @@ func (ifp *IdleFrameProvider) createIdleImageText() error {
 	if label == ifp.lastText {
 		return nil
 	}
+	fmt.Printf("Rendering text \"%s\"\n", label)
 	h, w := uint32(200), uint32(200) //ifp.GetDimensions()
 	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
 	col := color.RGBA{200, 100, 0, 255}
@@ -105,7 +107,7 @@ func (ifp *IdleFrameProvider) createIdleImageText() error {
 	wpos := int(w/2) - xsize/2
 	point = fixed.Point26_6{X: fixed.I(wpos), Y: fixed.I(y)}
 	d.Dot = point
-	fmt.Printf("b=%d,xsize:%d, Wpos: %d\n", b, xsize, wpos)
+	//fmt.Printf("b=%d,xsize:%d, Wpos: %d\n", b, xsize, wpos)
 	d.DrawString(label)
 	h, w = ifp.GetDimensions()
 	rd := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
