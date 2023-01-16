@@ -19,12 +19,18 @@ var (
 	send_frames = flag.String("send_frames", "", "send all frames in this `directory`")
 	videocam    = flag.String("videodev", "", "if set, connect loopback to this `/dev/videoX`")
 	stopvideo   = flag.Bool("idle", false, "switch to idle source")
+	start_app   = flag.Bool("start_app", false, "start app in userspace")
+	cam         = flag.String("camera", "", "if non nil uses images server to stream cameras, e.g. cam://espcam1")
 	echoClient  pb.WebCamMixerClient
 )
 
 func main() {
 	flag.Parse()
 	var err error
+	if *cam != "" {
+		utils.Bail("Failed to set camera", SetCam())
+		goto end
+	}
 	if *idle_text != "" {
 		utils.Bail("failed to set text", SetText())
 		goto end
@@ -77,5 +83,12 @@ func StopVideoCam() error {
 func SetText() error {
 	ctx := authremote.Context()
 	_, err := pb.GetWebCamMixerClient().SetIdleText(ctx, &pb.IdleTextRequest{Text: *idle_text})
+	return err
+}
+
+func SetCam() error {
+	ctx := authremote.Context()
+	ur := &pb.URL{URL: *cam}
+	_, err := pb.GetWebCamMixerClient().SwitchToLiveImages(ctx, ur)
 	return err
 }

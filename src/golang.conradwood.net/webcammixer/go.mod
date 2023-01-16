@@ -28,6 +28,8 @@ require (
 	golang.conradwood.net/apis/echoservice v1.1.2006 // indirect
 	golang.conradwood.net/apis/errorlogger v1.1.2006 // indirect
 	golang.conradwood.net/apis/framework v1.1.2006 // indirect
+	golang.conradwood.net/apis/h2gproxy v1.1.2048 // indirect
+	golang.conradwood.net/apis/images v1.1.2048 // indirect
 	golang.conradwood.net/apis/objectstore v1.1.2006 // indirect
 	golang.conradwood.net/apis/registry v1.1.2006 // indirect
 	golang.conradwood.net/apis/rpcinterceptor v1.1.2006 // indirect

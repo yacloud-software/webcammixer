@@ -88,6 +88,17 @@ func (e *echoServer) SwitchToIdle(ctx context.Context, req *common.Void) (*commo
 	loopdev.SetTimingSource(mfp)
 	return &common.Void{}, nil
 }
+func (e *echoServer) SwitchToLiveImages(ctx context.Context, req *pb.URL) (*common.Void, error) {
+	mfp := NewLiveImageProvider(req.URL, mixerapp.GetLoopDev())
+
+	loopdev := mixerapp.GetLoopDev()
+	if loopdev == nil {
+		return nil, fmt.Errorf("not ready yet - try again later")
+	}
+	loopdev.SetProvider(mfp)
+	loopdev.SetTimingSource(mfp)
+	return &common.Void{}, nil
+}
 func (e *echoServer) SendFrames(srv pb.WebCamMixer_SendFramesServer) error {
 	lastimage := false
 	var framedata []byte
