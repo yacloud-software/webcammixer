@@ -29,6 +29,9 @@ message LoopbackInfo {
 message IdleTextRequest {
   string Text=1;
 }
+message URL {
+  string URL=1;
+}
 // feed an image to v4l2loopback
 service WebCamMixer {
   // send one or more images to v4l
@@ -47,6 +50,8 @@ mostly useful for testing converters
   rpc GetLoopbackInfo(common.Void) returns (LoopbackInfo);
   // set idle text
   rpc SetIdleText(IdleTextRequest) returns (common.Void);
+  // switch to images-client
+  rpc SwitchToLiveImages(URL) returns (common.Void);
 }
 
 
