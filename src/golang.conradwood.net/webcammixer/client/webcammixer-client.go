@@ -8,11 +8,15 @@ import (
 	"golang.conradwood.net/go-easyops/authremote"
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/mixerapp"
+	"golang.org/x/term"
 	"os"
+	"strconv"
 	"time"
 )
 
 var (
+	app         = flag.Bool("app", false, "start app")
+	repeat      = flag.Bool("repeat", false, "if true, repeat video selection")
 	idle_text   = flag.String("text", "", "set idle text")
 	delay       = flag.Duration("delay", time.Duration(500)*time.Millisecond, "`delay` between images")
 	send_images = flag.String("send_images", "", "send all pix in this `directory`")
@@ -51,24 +55,78 @@ func main() {
 		utils.Bail("failed to send frames", sendFrames())
 		goto end
 	}
-	err = mixerapp.Start()
-	utils.Bail("failed to start", err)
-	mixerapp.WaitUntilDone()
-	os.Exit(0)
-	echoClient = pb.GetWebCamMixerClient()
-
-	// a context with authentication
-	//	ctx := authremote.Context()
-
-	//	empty := &common.Void{}
-	//	response, err := echoClient.Ping(ctx, empty)
-	//	utils.Bail("Failed to ping server", err)
-	//	fmt.Printf("Response to ping: %v\n", response)
+	if *app {
+		err = mixerapp.Start()
+		utils.Bail("failed to start", err)
+		mixerapp.WaitUntilDone()
+		os.Exit(0)
+	}
+	utils.Bail("failed to get capture devices", detect())
 end:
 	fmt.Printf("Done.\n")
 	os.Exit(0)
 }
+func detect() error {
+	echoClient = pb.GetWebCamMixerClient()
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	utils.Bail("failed to set term", err)
+	term.Restore(int(os.Stdin.Fd()), oldState)
+repeat_with_print:
+	wl, err := echoClient.GetCaptureDevices(authremote.Context(), &common.Void{})
+	if err != nil {
+		return err
+	}
+	devs := make(map[int]*pb.CaptureDevice)
+	t := &utils.Table{}
+	t.AddHeaders("#", "Name", "Device")
+	for i, d := range wl.Devices {
+		devs[i+1] = d
+		t.AddInt(i + 1)
+		t.AddString(d.Name)
+		t.AddString(d.Device)
+		t.NewRow()
+	}
+	fmt.Println(t.ToPrettyString())
+	_, err = term.MakeRaw(int(os.Stdin.Fd()))
+	utils.Bail("failed to set term", err)
+repeat:
+	_, err = term.MakeRaw(int(os.Stdin.Fd()))
+	utils.Bail("failed to set term", err)
+	fmt.Printf("Press number on keyboard to select video device -> ")
+	b := make([]byte, 1)
+	_, err = os.Stdin.Read(b)
+	if err != nil {
+		term.Restore(int(os.Stdin.Fd()), oldState)
+		return err
+	}
+	if b[0] == 27 || b[0] == 'q' {
+		term.Restore(int(os.Stdin.Fd()), oldState)
+		fmt.Printf("Aborted.\n")
+		return nil
+	}
+	devnum, err := strconv.Atoi(string(b))
+	if err != nil {
+		fmt.Printf("Not a valid number: \"%s\"\n", err)
+		goto repeat
+	}
+	d, found := devs[devnum]
+	if !found {
+		fmt.Printf("Device does not exist (%d)\n", devnum)
+		goto repeat
+	}
 
+	term.Restore(int(os.Stdin.Fd()), oldState)
+	fmt.Printf("Setting device %s\n", d.Device)
+	ctx := authremote.Context()
+	vr := &pb.VideoDeviceDef{VideoDeviceName: d.Device}
+	_, err = pb.GetWebCamMixerClient().SendVideoDevice(ctx, vr)
+	if err != nil {
+		term.Restore(int(os.Stdin.Fd()), oldState)
+		return err
+	}
+	goto repeat_with_print
+
+}
 func SetVideoCam() error {
 	ctx := authremote.Context()
 	vr := &pb.VideoDeviceDef{VideoDeviceName: *videocam}

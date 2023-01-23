@@ -112,7 +112,8 @@ retry:
 		return nil, fmt.Errorf("%s: Wanted pixelformat %v (%s), but got %v (%s)", devicename, needFormat, nf, npf.PixelFormat, af)
 	}
 
-	if npf.Height < height || npf.Width < width {
+	if (npf.Height < height || npf.Width < width) && next_try < len(bigger_pixel_formats) {
+		fmt.Printf("Next_try: %d, len=%d\n", next_try, len(bigger_pixel_formats))
 		b := bigger_pixel_formats[next_try]
 		pf = v4l2.PixFormat{PixelFormat: needFormat,
 			Width:        b.width,

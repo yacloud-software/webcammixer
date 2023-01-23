@@ -13,6 +13,7 @@ import (
 	"golang.conradwood.net/webcammixer/converters"
 	"golang.conradwood.net/webcammixer/defaults"
 	"golang.conradwood.net/webcammixer/mixerapp"
+	"golang.conradwood.net/webcammixer/webcam"
 	"golang.org/x/image/draw"
 	"google.golang.org/grpc"
 	"image"
@@ -20,6 +21,7 @@ import (
 	_ "image/png"
 	"io"
 	"os"
+	"sort"
 	"time"
 )
 
@@ -248,4 +250,23 @@ func (e *echoServer) SetIdleText(ctx context.Context, req *pb.IdleTextRequest) (
 
 	ifp.SetIdleText(req.Text)
 	return &common.Void{}, nil
+}
+
+func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*pb.CaptureDeviceList, error) {
+	wlist, err := webcam.GetCaptureDevices()
+	if err != nil {
+		return nil, err
+	}
+	res := &pb.CaptureDeviceList{}
+	for _, w := range wlist {
+		cd := &pb.CaptureDevice{
+			Device: w.DeviceName,
+			Name:   w.Capabilities.Card,
+		}
+		res.Devices = append(res.Devices, cd)
+	}
+	sort.Slice(res.Devices, func(i, j int) bool {
+		return res.Devices[i].Device < res.Devices[j].Device
+	})
+	return res, nil
 }

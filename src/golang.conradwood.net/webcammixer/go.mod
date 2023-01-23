@@ -5,10 +5,12 @@ go 1.17
 require (
 	github.com/vladimirvivien/go4vl v0.0.0-00010101000000-000000000000
 	golang.conradwood.net/apis/common v1.1.2006
+	golang.conradwood.net/apis/images v1.1.2048
 	golang.conradwood.net/apis/webcammixer v0.0.0-00010101000000-000000000000
 	golang.conradwood.net/go-easyops v0.1.14292
 	golang.org/x/image v0.1.0
 	golang.org/x/sys v0.2.0
+	golang.org/x/term v0.2.0
 	google.golang.org/grpc v1.51.0
 )
 
@@ -29,7 +31,6 @@ require (
 	golang.conradwood.net/apis/errorlogger v1.1.2006 // indirect
 	golang.conradwood.net/apis/framework v1.1.2006 // indirect
 	golang.conradwood.net/apis/h2gproxy v1.1.2048 // indirect
-	golang.conradwood.net/apis/images v1.1.2048 // indirect
 	golang.conradwood.net/apis/objectstore v1.1.2006 // indirect
 	golang.conradwood.net/apis/registry v1.1.2006 // indirect
 	golang.conradwood.net/apis/rpcinterceptor v1.1.2006 // indirect

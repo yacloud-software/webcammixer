@@ -87,3 +87,27 @@ func GetWebCamInfo(devicename string) *WebCamInfo {
 	return wci
 
 }
+
+func GetCaptureDevices() ([]*WebCamInfo, error) {
+	wl, err := Detect()
+	if err != nil {
+		fmt.Printf("Failed: %s\n", err)
+		return nil, err
+	}
+	var res []*WebCamInfo
+	for _, w := range wl {
+		if !w.IsCaptureDevice() {
+			continue
+		}
+		if w.OpenErr != nil {
+			continue
+		}
+		xcap := w.Capabilities
+		if strings.Contains(xcap.Driver, "loopback") {
+			continue
+		}
+		res = append(res, w)
+	}
+	return res, nil
+
+}
