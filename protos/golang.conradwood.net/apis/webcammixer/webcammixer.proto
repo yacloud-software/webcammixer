@@ -32,6 +32,16 @@ message IdleTextRequest {
 message URL {
   string URL=1;
 }
+message CaptureDeviceList {
+  repeated CaptureDevice Devices=1;
+}
+message CaptureDevice {
+  string Device=1;
+  string Name=2;
+}
+
+
+
 // feed an image to v4l2loopback
 service WebCamMixer {
   // send one or more images to v4l
@@ -52,6 +62,6 @@ mostly useful for testing converters
   rpc SetIdleText(IdleTextRequest) returns (common.Void);
   // switch to images-client
   rpc SwitchToLiveImages(URL) returns (common.Void);
+  // get list of video devices
+  rpc GetCaptureDevices(common.Void) returns(CaptureDeviceList);
 }
-
-
