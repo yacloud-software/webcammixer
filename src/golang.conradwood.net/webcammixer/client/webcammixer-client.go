@@ -86,6 +86,7 @@ repeat_with_print:
 		t.AddString(d.Device)
 		t.NewRow()
 	}
+	fmt.Println("0 - idle text")
 	fmt.Println(t.ToPrettyString())
 	_, err = term.MakeRaw(int(os.Stdin.Fd()))
 	utils.Bail("failed to set term", err)
@@ -108,6 +109,19 @@ repeat:
 	if err != nil {
 		fmt.Printf("Not a valid number: \"%s\"\n", err)
 		goto repeat
+	}
+	if devnum == 0 {
+		term.Restore(int(os.Stdin.Fd()), oldState)
+		ctx := authremote.Context()
+		_, err = pb.GetWebCamMixerClient().SwitchToIdle(ctx, &common.Void{})
+		if err != nil {
+			return err
+		}
+		_, err = pb.GetWebCamMixerClient().SetIdleText(ctx, &pb.IdleTextRequest{Text: "standby..."})
+		if err != nil {
+			return err
+		}
+		goto repeat_with_print
 	}
 	d, found := devs[devnum]
 	if !found {
