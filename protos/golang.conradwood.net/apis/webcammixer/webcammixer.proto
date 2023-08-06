@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package webcammixer;
+option go_package = "golang.conradwood.net/apis/webcammixer";
 option java_package = "net.conradwood.apis.webcammixer";
 import "golang.conradwood.net/apis/common/common.proto";
 
