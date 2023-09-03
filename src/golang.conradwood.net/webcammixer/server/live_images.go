@@ -70,8 +70,9 @@ func (l *liveimgprovider) worker() {
 			l.last_time_had_channel = time.Now()
 			c <- true
 		} else {
-			l.Printf("got image, but no channel...\n")
-			if time.Since(l.last_time_had_channel) > live_img_idle {
+			since := time.Since(l.last_time_had_channel)
+			l.Printf("got image, but no channel (for %0.1fs)...\n", since.Seconds())
+			if since > live_img_idle {
 				break
 			}
 
