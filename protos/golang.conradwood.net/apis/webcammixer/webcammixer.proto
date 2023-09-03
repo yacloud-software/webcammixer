@@ -39,6 +39,7 @@ message CaptureDeviceList {
 message CaptureDevice {
   string Device=1;
   string Name=2;
+  uint32 Type=3;//0-local device, 1=images server
 }
 
 
@@ -53,8 +54,10 @@ no conversion will be done on this frame.
 mostly useful for testing converters
   */ 
   rpc SendFrames(stream FrameStream) returns (common.Void);
-  // connect to a video device
+  // connect to a LOCAL video device
   rpc SendVideoDevice(VideoDeviceDef) returns (common.Void);
+  // connect to any capture source
+  rpc SendFromCaptureDevice(CaptureDevice)returns(common.Void);
   // switch to "idle"
   rpc SwitchToIdle(common.Void) returns (common.Void);
   // get loopback config info
