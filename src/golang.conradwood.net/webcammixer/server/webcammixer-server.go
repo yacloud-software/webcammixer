@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"golang.conradwood.net/apis/common"
+	"golang.conradwood.net/apis/images"
 	pb "golang.conradwood.net/apis/webcammixer"
 	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/server"
@@ -62,6 +63,19 @@ func main() {
 /************************************
 * grpc functions
 ************************************/
+func (e *echoServer) SendFromCaptureDevice(ctx context.Context, req *pb.CaptureDevice) (*common.Void, error) {
+	if req.Type == 0 {
+		vdd := &pb.VideoDeviceDef{
+			VideoDeviceName: req.Device,
+		}
+		return e.SendVideoDevice(ctx, vdd)
+	}
+	if req.Type == 1 {
+		return e.SwitchToLiveImages(ctx, &pb.URL{URL: req.Device})
+	}
+	return nil, fmt.Errorf("cannot yet set type %d (%s)", req.Type, req.Device)
+
+}
 func (e *echoServer) SendVideoDevice(ctx context.Context, req *pb.VideoDeviceDef) (*common.Void, error) {
 	loopdev := mixerapp.GetLoopDev()
 	if loopdev == nil {
@@ -253,6 +267,11 @@ func (e *echoServer) SetIdleText(ctx context.Context, req *pb.IdleTextRequest) (
 }
 
 func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*pb.CaptureDeviceList, error) {
+	cameras, err := images.GetImagesClient().GetCameras(ctx, &common.Void{})
+	if err != nil {
+		fmt.Printf("error getting cameras: %s\n", utils.ErrorString(err))
+		cameras = &images.CameraList{}
+	}
 	wlist, err := webcam.GetCaptureDevices()
 	if err != nil {
 		return nil, err
@@ -260,8 +279,18 @@ func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*
 	res := &pb.CaptureDeviceList{}
 	for _, w := range wlist {
 		cd := &pb.CaptureDevice{
+			Type:   0,
 			Device: w.DeviceName,
 			Name:   w.Capabilities.Card,
+		}
+		res.Devices = append(res.Devices, cd)
+	}
+
+	for _, c := range cameras.Cameras {
+		cd := &pb.CaptureDevice{
+			Name:   c.Name,
+			Device: c.URL,
+			Type:   1,
 		}
 		res.Devices = append(res.Devices, cd)
 	}

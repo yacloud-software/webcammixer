@@ -132,8 +132,9 @@ repeat:
 	term.Restore(int(os.Stdin.Fd()), oldState)
 	fmt.Printf("Setting device %s\n", d.Device)
 	ctx := authremote.Context()
-	vr := &pb.VideoDeviceDef{VideoDeviceName: d.Device}
-	_, err = pb.GetWebCamMixerClient().SendVideoDevice(ctx, vr)
+	//	vr := &pb.VideoDeviceDef{VideoDeviceName: d.Device}
+	//	_, err = pb.GetWebCamMixerClient().SendVideoDevice(ctx, vr)
+	_, err = pb.GetWebCamMixerClient().SendFromCaptureDevice(ctx, d)
 	if err != nil {
 		term.Restore(int(os.Stdin.Fd()), oldState)
 		return err

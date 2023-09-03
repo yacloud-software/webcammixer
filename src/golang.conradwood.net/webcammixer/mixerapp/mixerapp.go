@@ -63,7 +63,7 @@ func Start() error {
 	h, w := defaults.GetDimensions()
 	loopdev, err = loopback.Open(wi_loop.DeviceName, h, w)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open loopback device: %w", err)
 	}
 	fmt.Printf("Loopback opened: %#v\n", wi_loop.DeviceName)
 	defidle = NewIdleFrameProvider(loopdev.GetDimensions())
