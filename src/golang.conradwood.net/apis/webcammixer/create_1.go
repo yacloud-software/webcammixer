@@ -49,4 +49,5 @@ func WebCamMixerLookupID() string { return "webcammixer.WebCamMixer" } // return
 
 func init() {
    client.RegisterDependency("webcammixer.WebCamMixer")
+   AddService("webcammixer.WebCamMixer")
 }
