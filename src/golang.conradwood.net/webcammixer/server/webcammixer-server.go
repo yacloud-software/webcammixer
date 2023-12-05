@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"golang.conradwood.net/apis/common"
-	"golang.conradwood.net/apis/images"
 	pb "golang.conradwood.net/apis/webcammixer"
 	"golang.conradwood.net/go-easyops/errors"
 	"golang.conradwood.net/go-easyops/server"
@@ -14,7 +13,6 @@ import (
 	"golang.conradwood.net/webcammixer/converters"
 	"golang.conradwood.net/webcammixer/defaults"
 	"golang.conradwood.net/webcammixer/mixerapp"
-	"golang.conradwood.net/webcammixer/webcam"
 	"golang.org/x/image/draw"
 	"google.golang.org/grpc"
 	"image"
@@ -22,7 +20,6 @@ import (
 	_ "image/png"
 	"io"
 	"os"
-	"sort"
 	"time"
 )
 
@@ -40,16 +37,16 @@ func main() {
 	var err error
 	flag.Parse()
 	fmt.Printf("Starting WebCamMixerServer...\n")
-
+	go cache_webcam_devices()
 	sd := server.NewServerDef()
-	sd.Port = *port
-	sd.Register = server.Register(
+	sd.SetPort(*port)
+	sd.SetRegister(server.Register(
 		func(server *grpc.Server) error {
 			e := new(echoServer)
 			pb.RegisterWebCamMixerServer(server, e)
 			return nil
 		},
-	)
+	))
 	//	go test()
 	go func() {
 		utils.Bail("failed to start app", mixerapp.Start())
@@ -267,35 +264,5 @@ func (e *echoServer) SetIdleText(ctx context.Context, req *pb.IdleTextRequest) (
 }
 
 func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*pb.CaptureDeviceList, error) {
-	cameras, err := images.GetImagesClient().GetCameras(ctx, &common.Void{})
-	if err != nil {
-		fmt.Printf("error getting cameras: %s\n", utils.ErrorString(err))
-		cameras = &images.CameraList{}
-	}
-	wlist, err := webcam.GetCaptureDevices()
-	if err != nil {
-		return nil, err
-	}
-	res := &pb.CaptureDeviceList{}
-	for _, w := range wlist {
-		cd := &pb.CaptureDevice{
-			Type:   0,
-			Device: w.DeviceName,
-			Name:   w.Capabilities.Card,
-		}
-		res.Devices = append(res.Devices, cd)
-	}
-
-	for _, c := range cameras.Cameras {
-		cd := &pb.CaptureDevice{
-			Name:   c.Name,
-			Device: c.URL,
-			Type:   1,
-		}
-		res.Devices = append(res.Devices, cd)
-	}
-	sort.Slice(res.Devices, func(i, j int) bool {
-		return res.Devices[i].Device < res.Devices[j].Device
-	})
-	return res, nil
+	return getCaptureDevices()
 }
