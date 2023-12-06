@@ -43,6 +43,10 @@ message CaptureDevice {
 }
 
 
+message CountdownRequest {
+  string Text=1;
+  uint32 Seconds=2;    
+}
 
 // feed an image to v4l2loopback
 service WebCamMixer {
@@ -68,4 +72,6 @@ mostly useful for testing converters
   rpc SwitchToLiveImages(URL) returns (common.Void);
   // get list of video devices
   rpc GetCaptureDevices(common.Void) returns(CaptureDeviceList);
+  // rpc display a message and countdown
+  rpc SetCountdown(CountdownRequest) returns (common.Void);
 }
