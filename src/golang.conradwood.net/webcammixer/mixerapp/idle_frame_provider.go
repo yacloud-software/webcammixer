@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	_ "github.com/fogleman/gg"
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/converters"
+	"golang.conradwood.net/webcammixer/labeller"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
@@ -18,29 +20,42 @@ import (
 	"time"
 )
 
+const (
+	TEXT_MINX = 100
+	TEXT_MINY = 100
+)
+
 var (
-	idle_sleep     = flag.Duration("idle_sleep", time.Duration(1)*time.Second, "time to sleep between sending idle image updates")
+	idle_sleep     = flag.Duration("idle_sleep", time.Duration(100)*time.Millisecond, "time to sleep between sending idle image updates")
 	idle_text      = flag.String("idle_text", "idle", "if set, display an idle text instead of idle image")
 	loopback_image = flag.String("idle_image", "/tmp/idle_image.jpeg", "set this to the image to be served whilst no camera is attached")
 )
 
 type IdleFrameProvider struct {
-	idle_text         func() string
-	width             uint32
-	height            uint32
-	idleImage         image.Image
-	idleImageRaw      []byte
-	idleImageLastMod  time.Time
-	idleImageLastFile string
-	lastText          string
-	notify            chan bool
+	pos_going_right    bool
+	pos_going_down     bool
+	TextXPOSAdjust     int
+	TextYPOSAdjust     int
+	colour_going_down  bool
+	last_colour_update time.Time
+	cur_rgba           []uint8
+	idle_text          func() string
+	width              uint32
+	height             uint32
+	idleImage          image.Image
+	idleImageRaw       []byte
+	idleImageLastMod   time.Time
+	idleImageLastFile  string
+	lastText           string
+	notify             chan bool
 }
 
 // blocks and provides "idle" frame
 func NewIdleFrameProvider(h, w uint32) *IdleFrameProvider {
 	ifp := &IdleFrameProvider{
-		width:  w,
-		height: h,
+		cur_rgba: []uint8{200, 100, 0, 255},
+		width:    w,
+		height:   h,
 	}
 	if *idle_text != "" {
 		ifp.idle_text = func() string {
@@ -74,7 +89,7 @@ func (ifp *IdleFrameProvider) Run() error {
 		}
 		if err != nil {
 			fmt.Printf("failed to load idleimage: %s\n", err)
-			time.Sleep(time.Duration(1) * time.Second)
+			time.Sleep(time.Duration(1500) * time.Millisecond)
 			continue
 		}
 		//		sys.Write(int(l.Device.GetFD()), b)
@@ -88,18 +103,51 @@ func (ifp *IdleFrameProvider) Run() error {
 	}
 }
 func (ifp *IdleFrameProvider) createIdleImageText() error {
+	ifp.CalcColour()
+	col := color.RGBA{ifp.cur_rgba[0], ifp.cur_rgba[1], ifp.cur_rgba[2], ifp.cur_rgba[3]}
+	xsize := 640
+	ysize := 480
+	h, w := ifp.GetDimensions()
+	xsize = int(w)
+	ysize = int(h)
+	txt := ifp.idle_text()
+	l := labeller.NewLabellerForBlankCanvas(xsize, ysize, color.RGBA{0, 0, 0, 255})
+	l.SetFontSize(80)
+
+	x := 0
+	y := 0
+	x = x + ifp.TextXPOSAdjust
+	y = y + ifp.TextYPOSAdjust
+
+	ld := l.NewLabel(x, y, col, txt)
+	err := l.PaintLabel(ld)
+	if err != nil {
+		return err
+	}
+	rawimage, err := converters.ConvertToRaw(l.GetImage())
+	if err != nil {
+		return err
+	}
+	ifp.idleImageRaw = rawimage.DefaultBytes()
+	ifp.idleImageLastFile = ""
+	return nil
+
+}
+func (ifp *IdleFrameProvider) OLD_createIdleImageText() error {
 	if ifp.idle_text == nil {
 		fmt.Printf("No idle-text, idletext called\n")
 		return fmt.Errorf("no idle text")
 	}
 	label := ifp.idle_text()
-	if label == ifp.lastText {
-		return nil
-	}
-	fmt.Printf("Rendering text \"%s\"\n", label)
+	//	if label == ifp.lastText {
+	//		return nil
+	//	}
+	ifp.CalcColour()
+	fmt.Printf("Rendering text \"%s\" (colour:%v)\n", label, ifp.cur_rgba)
 	h, w := uint32(200), uint32(200) //ifp.GetDimensions()
 	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
-	col := color.RGBA{200, 100, 0, 255}
+	//	col := color.RGBA{200, 100, 0, 255}
+	col := color.RGBA{ifp.cur_rgba[0], ifp.cur_rgba[1], ifp.cur_rgba[2], ifp.cur_rgba[3]}
 	//x := int(w / 2)
 	y := int(h / 2)
 	point := fixed.Point26_6{X: fixed.I(0), Y: fixed.I(0)}
@@ -113,6 +161,8 @@ func (ifp *IdleFrameProvider) createIdleImageText() error {
 	b, _ := d.BoundString(label)
 	xsize := int(b.Max.X >> 6)
 	wpos := int(w/2) - xsize/2
+	y = y + ifp.TextYPOSAdjust
+	wpos = wpos + ifp.TextXPOSAdjust
 	point = fixed.Point26_6{X: fixed.I(wpos), Y: fixed.I(y)}
 	d.Dot = point
 	//fmt.Printf("b=%d,xsize:%d, Wpos: %d\n", b, xsize, wpos)
@@ -185,5 +235,63 @@ func (ifp *IdleFrameProvider) GetID() string {
 
 // called by looopback
 func (ifp *IdleFrameProvider) GetFrame() ([]byte, error) {
+	//	ifp.CalcColour()
+	//	fmt.Printf("[%v] Getting frame...\n", time.Now())
 	return ifp.idleImageRaw, nil
+}
+
+func (ifp *IdleFrameProvider) CalcColour() {
+	diff := time.Since(ifp.last_colour_update)
+	if diff < time.Duration(100)*time.Millisecond {
+		return
+	}
+	adjust := uint8(0)
+	if diff > 20 {
+		adjust = 20
+	} else {
+		adjust = uint8(diff)
+	}
+
+	ifp.last_colour_update = time.Now()
+
+	if ifp.cur_rgba[0] <= 100 {
+		ifp.colour_going_down = false
+	}
+	if ifp.cur_rgba[0] >= 250 {
+		ifp.colour_going_down = true
+	}
+	if ifp.colour_going_down {
+		ifp.cur_rgba[0] = ifp.cur_rgba[0] - adjust
+	} else {
+		ifp.cur_rgba[0] = ifp.cur_rgba[0] + adjust
+	}
+
+	if ifp.TextXPOSAdjust > 500 {
+		ifp.pos_going_right = false
+	}
+	if ifp.TextXPOSAdjust < TEXT_MINX {
+		ifp.TextXPOSAdjust = TEXT_MINX
+		ifp.pos_going_right = true
+	}
+
+	if ifp.TextYPOSAdjust > 500 {
+		ifp.pos_going_down = false
+	}
+	if ifp.TextYPOSAdjust < TEXT_MINY {
+		ifp.TextYPOSAdjust = TEXT_MINY
+		ifp.pos_going_down = true
+	}
+
+	pos_adjust := 1
+	if ifp.pos_going_right {
+		ifp.TextXPOSAdjust = ifp.TextXPOSAdjust + pos_adjust
+	} else {
+		ifp.TextXPOSAdjust = ifp.TextXPOSAdjust - pos_adjust
+	}
+	pos_adjust = 1
+	if ifp.pos_going_down {
+		ifp.TextYPOSAdjust = ifp.TextYPOSAdjust + pos_adjust
+	} else {
+		ifp.TextYPOSAdjust = ifp.TextYPOSAdjust - pos_adjust
+	}
 }
