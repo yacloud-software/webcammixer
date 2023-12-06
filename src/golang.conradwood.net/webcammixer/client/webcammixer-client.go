@@ -18,6 +18,7 @@ var (
 	app         = flag.Bool("app", false, "start app")
 	repeat      = flag.Bool("repeat", false, "if true, repeat video selection")
 	idle_text   = flag.String("text", "", "set idle text")
+	countdown   = flag.Duration("countdown", 0, "set a countdown")
 	delay       = flag.Duration("delay", time.Duration(500)*time.Millisecond, "`delay` between images")
 	send_images = flag.String("send_images", "", "send all pix in this `directory`")
 	send_frames = flag.String("send_frames", "", "send all frames in this `directory`")
@@ -31,6 +32,11 @@ var (
 func main() {
 	flag.Parse()
 	var err error
+	if *countdown != 0 {
+		utils.Bail("Failed to set camera", SetCountdown())
+		goto end
+	}
+
 	if *cam != "" {
 		utils.Bail("Failed to set camera", SetCam())
 		goto end
@@ -163,5 +169,17 @@ func SetCam() error {
 	ctx := authremote.Context()
 	ur := &pb.URL{URL: *cam}
 	_, err := pb.GetWebCamMixerClient().SwitchToLiveImages(ctx, ur)
+	return err
+}
+
+func SetCountdown() error {
+	ctx := authremote.Context()
+	dur := *countdown
+	req := &pb.CountdownRequest{
+		Text:    "Countdown",
+		Seconds: uint32(dur.Seconds()),
+	}
+	_, err := pb.GetWebCamMixerClient().SetCountdown(ctx, req)
+	fmt.Printf("Started countdown of %d seconds\n", req.Seconds)
 	return err
 }

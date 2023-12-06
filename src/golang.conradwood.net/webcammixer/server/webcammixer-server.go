@@ -259,10 +259,40 @@ func (e *echoServer) SetIdleText(ctx context.Context, req *pb.IdleTextRequest) (
 		return nil, fmt.Errorf("not ready yet - try again later")
 	}
 
-	ifp.SetIdleText(req.Text)
+	ifp.SetIdleText(func() string { return req.Text })
 	return &common.Void{}, nil
 }
 
 func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*pb.CaptureDeviceList, error) {
 	return getCaptureDevices()
+}
+
+func (e *echoServer) SetCountdown(ctx context.Context, req *pb.CountdownRequest) (*common.Void, error) {
+	ifp := mixerapp.DefaultIdleFrameProvider()
+	if ifp == nil {
+		return nil, fmt.Errorf("not ready yet - try again later")
+	}
+	ct := &countdowner{started: time.Now(), duration: time.Duration(req.Seconds) * time.Second}
+	ifp.SetIdleText(ct.getText)
+	return &common.Void{}, nil
+}
+
+type countdowner struct {
+	started  time.Time
+	duration time.Duration
+}
+
+func (c *countdowner) getText() string {
+	diff := time.Since(c.started)
+	if diff > c.duration {
+		return "idle"
+	}
+	remain := c.duration - diff
+	return RenderDuration(remain)
+}
+
+func RenderDuration(t time.Duration) string {
+	s := uint32(t.Seconds())
+	t = time.Duration(s) * time.Second
+	return fmt.Sprintf("%v", t)
 }

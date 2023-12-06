@@ -20,12 +20,12 @@ import (
 
 var (
 	idle_sleep     = flag.Duration("idle_sleep", time.Duration(1)*time.Second, "time to sleep between sending idle image updates")
-	idle_text      = flag.String("idle_text", "", "if set, display an idle text instead of idle image")
+	idle_text      = flag.String("idle_text", "idle", "if set, display an idle text instead of idle image")
 	loopback_image = flag.String("idle_image", "/tmp/idle_image.jpeg", "set this to the image to be served whilst no camera is attached")
 )
 
 type IdleFrameProvider struct {
-	idle_text         string
+	idle_text         func() string
 	width             uint32
 	height            uint32
 	idleImage         image.Image
@@ -39,13 +39,17 @@ type IdleFrameProvider struct {
 // blocks and provides "idle" frame
 func NewIdleFrameProvider(h, w uint32) *IdleFrameProvider {
 	ifp := &IdleFrameProvider{
-		width:     w,
-		idle_text: *idle_text,
-		height:    h,
+		width:  w,
+		height: h,
+	}
+	if *idle_text != "" {
+		ifp.idle_text = func() string {
+			return *idle_text
+		}
 	}
 	return ifp
 }
-func (ifp *IdleFrameProvider) SetIdleText(s string) {
+func (ifp *IdleFrameProvider) SetIdleText(s func() string) {
 	ifp.idle_text = s
 }
 
@@ -63,7 +67,7 @@ func (ifp *IdleFrameProvider) Run() error {
 	fmt.Printf("Starting idleframe provider...\n")
 	for {
 		var err error
-		if ifp.idle_text != "" {
+		if ifp.idle_text != nil {
 			err = ifp.createIdleImageText()
 		} else {
 			err = ifp.loadIdleImage()
@@ -84,7 +88,11 @@ func (ifp *IdleFrameProvider) Run() error {
 	}
 }
 func (ifp *IdleFrameProvider) createIdleImageText() error {
-	label := ifp.idle_text
+	if ifp.idle_text == nil {
+		fmt.Printf("No idle-text, idletext called\n")
+		return fmt.Errorf("no idle text")
+	}
+	label := ifp.idle_text()
 	if label == ifp.lastText {
 		return nil
 	}
