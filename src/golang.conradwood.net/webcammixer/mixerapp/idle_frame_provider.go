@@ -26,9 +26,10 @@ const (
 )
 
 var (
-	idle_sleep     = flag.Duration("idle_sleep", time.Duration(100)*time.Millisecond, "time to sleep between sending idle image updates")
-	idle_text      = flag.String("idle_text", "idle", "if set, display an idle text instead of idle image")
-	loopback_image = flag.String("idle_image", "/tmp/idle_image.jpeg", "set this to the image to be served whilst no camera is attached")
+	idle_sleep_send   = flag.Duration("idle_sleep_send", time.Duration(200)*time.Millisecond, "time between sending idle image updates")
+	idle_sleep_create = flag.Duration("idle_create_image", time.Duration(3000)*time.Millisecond, "time between recreating idle images")
+	idle_text         = flag.String("idle_text", "idle", "if set, display an idle text instead of idle image")
+	loopback_image    = flag.String("idle_image", "/tmp/idle_image.jpeg", "set this to the image to be served whilst no camera is attached")
 )
 
 type IdleFrameProvider struct {
@@ -80,17 +81,21 @@ func (ifp *IdleFrameProvider) GetDimensions() (uint32, uint32) {
 
 func (ifp *IdleFrameProvider) Run() error {
 	fmt.Printf("Starting idleframe provider...\n")
+	var last_created time.Time
 	for {
 		var err error
-		if ifp.idle_text != nil {
-			err = ifp.createIdleImageText()
-		} else {
-			err = ifp.loadIdleImage()
-		}
-		if err != nil {
-			fmt.Printf("failed to load idleimage: %s\n", err)
-			time.Sleep(time.Duration(1500) * time.Millisecond)
-			continue
+		if time.Since(last_created) >= *idle_sleep_create || ifp.idle_text() != ifp.lastText {
+			if ifp.idle_text != nil {
+				err = ifp.createIdleImageText()
+			} else {
+				err = ifp.loadIdleImage()
+			}
+			if err != nil {
+				fmt.Printf("failed to load idleimage: %s\n", err)
+				time.Sleep(time.Duration(1500) * time.Millisecond)
+				continue
+			}
+			last_created = time.Now()
 		}
 		//		sys.Write(int(l.Device.GetFD()), b)
 		c := ifp.notify
@@ -99,11 +104,10 @@ func (ifp *IdleFrameProvider) Run() error {
 			// notify loopdev that we have a new frame
 			c <- true
 		}
-		time.Sleep(*idle_sleep)
+		time.Sleep(*idle_sleep_send)
 	}
 }
 func (ifp *IdleFrameProvider) createIdleImageText() error {
-	ifp.CalcColour()
 	col := color.RGBA{ifp.cur_rgba[0], ifp.cur_rgba[1], ifp.cur_rgba[2], ifp.cur_rgba[3]}
 	xsize := 640
 	ysize := 480
@@ -130,6 +134,7 @@ func (ifp *IdleFrameProvider) createIdleImageText() error {
 	}
 	ifp.idleImageRaw = rawimage.DefaultBytes()
 	ifp.idleImageLastFile = ""
+	ifp.lastText = txt
 	return nil
 
 }
@@ -237,6 +242,7 @@ func (ifp *IdleFrameProvider) GetID() string {
 func (ifp *IdleFrameProvider) GetFrame() ([]byte, error) {
 	//	ifp.CalcColour()
 	//	fmt.Printf("[%v] Getting frame...\n", time.Now())
+	ifp.CalcColour()
 	return ifp.idleImageRaw, nil
 }
 
