@@ -47,8 +47,21 @@ message CountdownRequest {
   string Text=1;
   uint32 Seconds=2;    
 }
+
+enum ConverterType {
+  UNDEFINED=0;
+  WEBCAM=1;
+  LABEL=2;
+  EXT_BINARY=3;
+}
+message UserImageConverter {
+  ConverterType Type=1;
+  string Text=2;
+  CaptureDevice Device=3;
+}
+
 message UserImageRequest {
-  string Text=1;
+  repeated UserImageConverter Converters=1; // it's a chain of things to set up
 }
 // feed an image to v4l2loopback
 service WebCamMixer {
