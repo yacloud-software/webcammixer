@@ -283,9 +283,12 @@ func (e *echoServer) SetIdleText(ctx context.Context, req *pb.IdleTextRequest) (
 	return &common.Void{}, nil
 }
 func (e *echoServer) SetUserImage(ctx context.Context, req *pb.UserImageRequest) (*common.Void, error) {
-	fmt.Printf("Setting userimage text to \"%s\"\n", req.Text)
+	fmt.Printf("Setting userimage ...\n")
 	ifp := switcher_impl.GetCurrentUserImageProvider()
-	ifp.SetIdleText(func() string { return req.Text })
+	err := ifp.SetConfig(req)
+	if err != nil {
+		return nil, err
+	}
 	switcher_impl.ActivateUserFrames()
 	return &common.Void{}, nil
 }

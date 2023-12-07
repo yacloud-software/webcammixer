@@ -195,7 +195,12 @@ func SetCountdown() error {
 
 func DynText() error {
 	ctx := authremote.Context()
-	_, err := pb.GetWebCamMixerClient().SetUserImage(ctx, &pb.UserImageRequest{Text: *dyntext})
+	uir := &pb.UserImageRequest{
+		Converters: []*pb.UserImageConverter{
+			&pb.UserImageConverter{Type: pb.ConverterType_LABEL, Text: *dyntext},
+		},
+	}
+	_, err := pb.GetWebCamMixerClient().SetUserImage(ctx, uir)
 	if err != nil {
 		return err
 	}
