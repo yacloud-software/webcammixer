@@ -5,7 +5,7 @@ import (
 	"fmt"
 	pb "golang.conradwood.net/apis/webcammixer"
 	"golang.conradwood.net/go-easyops/utils"
-	//	"golang.conradwood.net/webcammixer/converters"
+	"golang.conradwood.net/webcammixer/webcam"
 	"image"
 	"image/png"
 	"testing"
@@ -18,7 +18,7 @@ const (
 )
 
 func TestLabeller(t *testing.T) {
-	uip := NewUserImageProvider(WIDTH, HEIGHT)
+	uip := NewUserImageProvider(webcam.NewSourceMixer(), WIDTH, HEIGHT)
 	uip.SetConfig(&pb.UserImageRequest{
 		Converters: []*pb.UserImageConverter{
 			&pb.UserImageConverter{Type: pb.ConverterType_LABEL, Text: "foobar"},

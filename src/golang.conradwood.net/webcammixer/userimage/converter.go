@@ -4,23 +4,46 @@ import (
 	"github.com/fogleman/gg"
 	pb "golang.conradwood.net/apis/webcammixer"
 	"golang.conradwood.net/webcammixer/converters"
+	"golang.conradwood.net/webcammixer/interfaces"
 	"golang.conradwood.net/webcammixer/labeller"
-	"image/color"
+	//	"golang.conradwood.net/webcammixer/webcam"
+	//	"image/color"
+	//	"image"
+	//	"image/draw"
 )
 
 type converter struct {
 	cfg     *config
 	convdef *pb.UserImageConverter
 	typ     pb.ConverterType
-	lab     *labeller.Labeller // implements ext_converter
-	text    func() string
-	tmv     *text_mover
+	//	lab     *labeller.Labeller // implements ext_converter
+	text func() string
+	tmv  *text_mover
+	vcs  interfaces.VideoCamSource
 }
 
 func (c *converter) Modify(gctx *gg.Context) error {
+	if c.typ == pb.ConverterType_WEBCAM {
+		return c.webcam(gctx)
+	}
 	if c.typ == pb.ConverterType_LABEL {
 		return c.modify_text(gctx)
 	}
+	return nil
+}
+
+func (c *converter) webcam(gctx *gg.Context) error {
+	frame, err := c.vcs.GetFrame()
+	if err != nil {
+		return err
+	}
+	if len(frame) == 0 {
+		return nil
+	}
+	h, w := c.cfg.ifp.GetDimensions()
+	img := converters.ConvertYUV422ToImage(frame, int(h), int(w))
+	gctx.DrawImage(img, 0, 0)
+
 	return nil
 }
 
@@ -28,16 +51,11 @@ func (c *converter) modify_text(gctx *gg.Context) error {
 	c.tmv.Step()
 	ifp := c.cfg.ifp
 	col := c.tmv.RGBA()
-	xsize := 640
-	ysize := 480
-	h, w := ifp.GetDimensions()
-	xsize = int(w)
-	ysize = int(h)
 	txt := "."
 	if c.text != nil {
 		txt = c.text()
 	}
-	l := labeller.NewLabellerForBlankCanvas(xsize, ysize, color.RGBA{0, 0, 0, 255})
+	l := labeller.NewLabellerForCtx(gctx)
 	l.SetFontSize(80)
 
 	x := c.tmv.X()

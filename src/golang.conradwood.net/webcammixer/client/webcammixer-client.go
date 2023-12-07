@@ -200,6 +200,11 @@ func DynText() error {
 			&pb.UserImageConverter{Type: pb.ConverterType_LABEL, Text: *dyntext},
 		},
 	}
+	if *videocam != "" {
+		cd := &pb.CaptureDevice{Device: *videocam}
+		uic := &pb.UserImageConverter{Type: pb.ConverterType_WEBCAM, Device: cd}
+		uir.Converters = append([]*pb.UserImageConverter{uic}, uir.Converters...)
+	}
 	_, err := pb.GetWebCamMixerClient().SetUserImage(ctx, uir)
 	if err != nil {
 		return err

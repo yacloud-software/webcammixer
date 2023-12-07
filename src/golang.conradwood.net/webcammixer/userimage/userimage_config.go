@@ -3,7 +3,7 @@ package userimage
 import (
 	"github.com/fogleman/gg"
 	pb "golang.conradwood.net/apis/webcammixer"
-	"golang.conradwood.net/webcammixer/labeller"
+	// "golang.conradwood.net/webcammixer/labeller"
 )
 
 var (
@@ -29,17 +29,25 @@ func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 			cfg:     res,
 			typ:     cv.Type,
 			tmv: &text_mover{
-				red:   100,
-				green: 105,
+				red:   60,
+				green: 145,
 				blue:  55,
 			},
 		}
 		if cv.Type == pb.ConverterType_LABEL {
-			c.lab = labeller.NewLabellerForCfg(cv)
+			//			c.lab = labeller.NewLabellerForCfg(cv)
 			c.text = func() string { return cv.Text }
 		}
 		if cv.Type == pb.ConverterType_WEBCAM {
-			c.text = func() string { return cv.Text }
+			h, w := ifp.GetDimensions()
+			vcs, err := res.ifp.sourceMixer.SourceActivateVideoDef(cv.Device.Device, h, w)
+			if err != nil {
+				return err
+			}
+			c.vcs = vcs
+			tc := make(chan bool)
+			vcs.SetTimerTarget(tc)
+			res.ifp.timer_source = tc
 		}
 
 		res.converters = append(res.converters, c)

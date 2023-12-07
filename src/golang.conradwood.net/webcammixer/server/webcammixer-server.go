@@ -16,6 +16,7 @@ import (
 	"golang.conradwood.net/webcammixer/mixerapp"
 	"golang.conradwood.net/webcammixer/providers"
 	"golang.conradwood.net/webcammixer/switcher"
+	"golang.conradwood.net/webcammixer/webcam"
 	"golang.org/x/image/draw"
 	"google.golang.org/grpc"
 	"image"
@@ -33,6 +34,7 @@ var (
 	frame_chan    = make(chan []byte, 5)
 	mixapp        interfaces.MixerApp
 	switcher_impl = switcher.NewSwitcher()
+	source_mixer  interfaces.SourceMixer
 )
 
 type echoServer struct {
@@ -41,6 +43,8 @@ type echoServer struct {
 func main() {
 	var err error
 	flag.Parse()
+	source_mixer = webcam.NewSourceMixer()
+	switcher_impl.SetSourceMixer(source_mixer)
 	fmt.Printf("Starting WebCamMixerServer...\n")
 	go cache_webcam_devices()
 	sd := server.NewServerDef()
@@ -93,7 +97,7 @@ func (e *echoServer) SendVideoDevice(ctx context.Context, req *pb.VideoDeviceDef
 		return nil, errors.InvalidArgs(ctx, "loopback device cannot be source", "loopback device cannot be source")
 	}
 	h, w := defaults.GetDimensions()
-	sav, err := SourceActivateVideoDef(req.VideoDeviceName, h, w) // starts a thread reading from this video device
+	sav, err := source_mixer.SourceActivateVideoDef(req.VideoDeviceName, h, w) // starts a thread reading from this video device
 	if err != nil {
 		return nil, err
 	}

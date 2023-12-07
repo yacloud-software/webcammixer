@@ -4,7 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/fogleman/gg"
+	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/converters"
+	"golang.conradwood.net/webcammixer/interfaces"
 	"golang.conradwood.net/webcammixer/labeller"
 	"image"
 	"image/color"
@@ -19,10 +21,12 @@ const (
 )
 
 var (
-	idle_sleep = flag.Duration("user_sleep", time.Duration(100)*time.Millisecond, "time to sleep between sending idle image updates")
+	idle_sleep = flag.Duration("user_sleep", time.Duration(50)*time.Millisecond, "time to sleep between sending idle image updates")
 )
 
 type UserImageProvider struct {
+	timer_source       chan bool
+	sourceMixer        interfaces.SourceMixer
 	stop_requested     bool
 	pos_going_right    bool
 	pos_going_down     bool
@@ -42,13 +46,17 @@ type UserImageProvider struct {
 }
 
 // blocks and provides "idle" frame
-func NewUserImageProvider(h, w uint32) *UserImageProvider {
+func NewUserImageProvider(sm interfaces.SourceMixer, h, w uint32) *UserImageProvider {
 	ifp := &UserImageProvider{
-		cur_rgba: []uint8{200, 100, 0, 255},
-		width:    w,
-		height:   h,
+		sourceMixer: sm,
+		cur_rgba:    []uint8{200, 100, 0, 255},
+		width:       w,
+		height:      h,
 	}
 	return ifp
+}
+func (ifp *UserImageProvider) getSourceMixer() interfaces.SourceMixer {
+	return ifp.sourceMixer
 }
 
 // if target is non-null will send message to channel each time there is a new frame
@@ -67,6 +75,7 @@ func (ifp *UserImageProvider) Run() error {
 	}
 	h, w := ifp.GetDimensions()
 	fmt.Printf("Starting userframe provider with dimensions %dx%d...\n", w, h)
+	p := utils.ProgressReporter{}
 	for {
 		if ifp.stop_requested {
 			break
@@ -85,7 +94,18 @@ func (ifp *UserImageProvider) Run() error {
 			// notify loopdev that we have a new frame
 			c <- true
 		}
-		time.Sleep(*idle_sleep)
+		timesource := ifp.timer_source
+		if timesource == nil {
+			time.Sleep(*idle_sleep)
+		} else {
+			select {
+			case <-time.After(*idle_sleep):
+				//
+			case <-timesource:
+			}
+		}
+		p.Add(1)
+		p.Print()
 	}
 	fmt.Printf("UserImageProvider stopped\n")
 	return nil

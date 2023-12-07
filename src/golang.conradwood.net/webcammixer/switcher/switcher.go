@@ -14,12 +14,15 @@ var (
 )
 
 type switcher struct {
+	source_mixer interfaces.SourceMixer
 }
 
 func NewSwitcher() *switcher {
 	return &switcher{}
 }
-
+func (sw *switcher) SetSourceMixer(s interfaces.SourceMixer) {
+	sw.source_mixer = s
+}
 func (sw *switcher) SetMixerApp(ma interfaces.MixerApp) {
 	mixerapp = ma
 }
@@ -44,7 +47,7 @@ func (sw *switcher) get_user_image_provider(x, y uint32) *userimage.UserImagePro
 		def_user_image.Stop()
 		fmt.Printf("Stopping userimage provide with dimensions %d x %d\n", w, h)
 	}
-	ndef := userimage.NewUserImageProvider(y, x)
+	ndef := userimage.NewUserImageProvider(sw.source_mixer, y, x)
 	go ndef.Run()
 	def_user_image = ndef
 	fmt.Printf("Started userimage provide with dimensions %d x %d\n", x, y)

@@ -6,7 +6,7 @@ import (
 	"image/color"
 	// "strings"
 	"flag"
-	pb "golang.conradwood.net/apis/webcammixer"
+	//	pb "golang.conradwood.net/apis/webcammixer"
 	"image"
 	"image/draw"
 	_ "image/gif"
@@ -56,24 +56,24 @@ type Labeller struct {
 	img      image.Image
 	fontname string
 	fontsize uint32
+	ctx      *gg.Context
 }
 
-func NewLabellerForCfg(cfg *pb.UserImageConverter) *Labeller {
-	return NewLabellerForBlankCanvas(640, 640, color.RGBA{0, 0, 0, 255})
+func NewLabellerForCtx(ctx *gg.Context) *Labeller {
+	res := &Labeller{ctx: ctx}
+	res.set_defaults()
+	return res
 }
 func NewLabellerForImage(img image.Image) *Labeller {
-	res := &Labeller{img: img}
-	res.set_defaults()
+	dc := gg.NewContextForImage(img)
+	res := NewLabellerForCtx(dc)
+	res.img = img
 	return res
 }
 func NewLabellerForBlankCanvas(xsize, ysize int, col color.RGBA) *Labeller {
 	img := image.NewRGBA(image.Rect(0, 0, xsize, ysize))
 	draw.Draw(img, img.Bounds(), &image.Uniform{col}, image.ZP, draw.Src)
-	res := &Labeller{
-		img: img,
-	}
-	res.set_defaults()
-	return res
+	return NewLabellerForImage(img)
 }
 func (l *Labeller) set_defaults() {
 	if l.fontname == "" {
@@ -100,10 +100,6 @@ func (l *Labeller) GetImage() image.Image {
 	return l.img
 }
 
-func (l *Labeller) Modify(gg.Context) error {
-	return nil
-}
-
 // paint single label on to current image
 func (l *Labeller) PaintLabel(lt *LabelDef) error {
 	return l.PaintLabels([]*LabelDef{lt})
@@ -111,7 +107,7 @@ func (l *Labeller) PaintLabel(lt *LabelDef) error {
 
 // paint multiple labels onto current image (more efficient than single label)
 func (l *Labeller) PaintLabels(lt []*LabelDef) error {
-	dc := gg.NewContextForImage(l.img)
+	dc := l.ctx
 	for _, lab := range lt {
 
 		fs := lab.fontsize

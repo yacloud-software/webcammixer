@@ -27,19 +27,24 @@ type text_mover struct {
 
 func (t *text_mover) Step() {
 	if t.col_up {
-		if t.cur_red >= t.red || t.cur_blue >= t.blue || t.cur_green >= t.green {
+		if t.cur_red >= 254 || t.cur_blue >= 254 || t.cur_green >= 254 {
 			t.col_up = false
+		} else {
+			t.cur_red++
+			t.cur_blue++
+			t.cur_green++
 		}
-		t.cur_red++
-		t.cur_blue++
-		t.cur_green++
 	} else {
-		if t.cur_red == 0 || t.cur_blue == 0 || t.cur_green == 0 {
+		if t.cur_red <= t.red || t.cur_blue <= t.red || t.cur_green <= t.red {
 			t.col_up = true
+			t.cur_red = t.red
+			t.cur_blue = t.blue
+			t.cur_green = t.green
+		} else {
+			t.cur_red--
+			t.cur_blue--
+			t.cur_green--
 		}
-		t.cur_red--
-		t.cur_blue--
-		t.cur_green--
 	}
 
 	if t.xpos <= MIN_XPOS {
