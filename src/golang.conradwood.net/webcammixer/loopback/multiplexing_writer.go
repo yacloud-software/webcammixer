@@ -18,6 +18,7 @@ func (l *LoopBackDevice) RemoveProvider(f FrameProvider) {
 
 // set to a single frame provider
 func (l *LoopBackDevice) SetProvider(f FrameProvider) {
+	fmt.Printf("Setting provider %s\n", f.GetID())
 	l.frameProviderLock.Lock()
 	res := make(map[string]FrameProvider)
 	res[f.GetID()] = f
@@ -43,7 +44,9 @@ func (l *LoopBackDevice) NewFrame() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("loopback: Got new frame (%d bytes). (using %s)\n", len(frame), fp.GetID())
+	if *debug {
+		fmt.Printf("loopback: Got new frame (%d bytes). (using %s)\n", len(frame), fp.GetID())
+	}
 	if uint32(len(frame)) != l.bufsize {
 		fmt.Printf("Frame is %d bytes, but bufsize for loopback device is %d bytes!\n", len(frame), l.bufsize)
 	}

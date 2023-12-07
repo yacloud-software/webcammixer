@@ -12,7 +12,10 @@ import (
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/converters"
 	"golang.conradwood.net/webcammixer/defaults"
+	"golang.conradwood.net/webcammixer/interfaces"
 	"golang.conradwood.net/webcammixer/mixerapp"
+	"golang.conradwood.net/webcammixer/providers"
+	"golang.conradwood.net/webcammixer/switcher"
 	"golang.org/x/image/draw"
 	"google.golang.org/grpc"
 	"image"
@@ -24,10 +27,12 @@ import (
 )
 
 var (
-	debug      = flag.Bool("debug", false, "debug mode")
-	pr         = utils.ProgressReporter{}
-	port       = flag.Int("port", 4190, "The grpc server port")
-	frame_chan = make(chan []byte, 5)
+	debug         = flag.Bool("debug", false, "debug mode")
+	pr            = utils.ProgressReporter{}
+	port          = flag.Int("port", 4190, "The grpc server port")
+	frame_chan    = make(chan []byte, 5)
+	mixapp        interfaces.MixerApp
+	switcher_impl = switcher.NewSwitcher()
 )
 
 type echoServer struct {
@@ -47,9 +52,12 @@ func main() {
 			return nil
 		},
 	))
+	mixapp = &mixerapp.MixerApp{}
+	switcher_impl.SetMixerApp(mixapp)
+	mixapp.SetSwitcher(switcher_impl)
 	//	go test()
 	go func() {
-		utils.Bail("failed to start app", mixerapp.Start())
+		utils.Bail("failed to start app", mixapp.Start())
 	}()
 	//go frame_worker()
 	err = server.ServerStartup(sd)
@@ -61,6 +69,8 @@ func main() {
 * grpc functions
 ************************************/
 func (e *echoServer) SendFromCaptureDevice(ctx context.Context, req *pb.CaptureDevice) (*common.Void, error) {
+	switcher_impl.DeactivateUserFrames()
+	fmt.Printf("Setting capture device %s (type=%d)\n", req.Device, req.Type)
 	if req.Type == 0 {
 		vdd := &pb.VideoDeviceDef{
 			VideoDeviceName: req.Device,
@@ -74,7 +84,7 @@ func (e *echoServer) SendFromCaptureDevice(ctx context.Context, req *pb.CaptureD
 
 }
 func (e *echoServer) SendVideoDevice(ctx context.Context, req *pb.VideoDeviceDef) (*common.Void, error) {
-	loopdev := mixerapp.GetLoopDev()
+	loopdev := mixapp.GetLoopDev()
 	if loopdev == nil {
 		return nil, fmt.Errorf("not ready yet - try again later")
 	}
@@ -92,19 +102,27 @@ func (e *echoServer) SendVideoDevice(ctx context.Context, req *pb.VideoDeviceDef
 	return &common.Void{}, nil
 }
 func (e *echoServer) SwitchToIdle(ctx context.Context, req *common.Void) (*common.Void, error) {
-	mfp := mixerapp.NewManualFrameProvider()
-	loopdev := mixerapp.GetLoopDev()
+	switcher_impl.DeactivateUserFrames()
+	fmt.Printf("Switching to idle.\n")
+	mfp := mixapp.DefaultIdleFrameProvider()
+	//mfp := mixapp.NewManualFrameProvider()
+	if mfp == nil {
+		return nil, fmt.Errorf("not ready yet - try again later")
+	}
+	loopdev := mixapp.GetLoopDev()
 	if loopdev == nil {
 		return nil, fmt.Errorf("not ready yet - try again later")
 	}
 	loopdev.SetProvider(mfp)
 	loopdev.SetTimingSource(mfp)
+	mixapp.DefaultIdleFrameProvider().TriggerFrameNow()
 	return &common.Void{}, nil
 }
 func (e *echoServer) SwitchToLiveImages(ctx context.Context, req *pb.URL) (*common.Void, error) {
-	mfp := NewLiveImageProvider(req.URL, mixerapp.GetLoopDev())
+	switcher_impl.DeactivateUserFrames()
+	mfp := NewLiveImageProvider(req.URL, mixapp.GetLoopDev())
 
-	loopdev := mixerapp.GetLoopDev()
+	loopdev := mixapp.GetLoopDev()
 	if loopdev == nil {
 		return nil, fmt.Errorf("not ready yet - try again later")
 	}
@@ -113,10 +131,11 @@ func (e *echoServer) SwitchToLiveImages(ctx context.Context, req *pb.URL) (*comm
 	return &common.Void{}, nil
 }
 func (e *echoServer) SendFrames(srv pb.WebCamMixer_SendFramesServer) error {
+	switcher_impl.DeactivateUserFrames()
 	lastimage := false
 	var framedata []byte
-	mfp := mixerapp.NewManualFrameProvider()
-	loopdev := mixerapp.GetLoopDev()
+	mfp := providers.NewManualFrameProvider()
+	loopdev := mixapp.GetLoopDev()
 	if loopdev == nil {
 		return fmt.Errorf("not ready yet - try again later")
 	}
@@ -145,7 +164,7 @@ func (e *echoServer) SendFrames(srv pb.WebCamMixer_SendFramesServer) error {
 
 	// once all images were sent, revert back to idle
 	/*
-		ifp := mixerapp.NewIdleFrameProvider(loopdev.GetDimensions())
+		ifp := mixapp.NewIdleFrameProvider(loopdev.GetDimensions())
 		ifp.Run()
 		loopdev.SetProvider(ifp)
 		loopdev.SetTimingSource(ifp)
@@ -198,7 +217,7 @@ func newImage(framedata []byte) error {
 	if err != nil {
 		return err
 	}
-	loopdev := mixerapp.GetLoopDev()
+	loopdev := mixapp.GetLoopDev()
 	h, w := loopdev.GetDimensions()
 
 	scale := false
@@ -245,7 +264,7 @@ func test() {
 	}
 }
 func (e *echoServer) GetLoopbackInfo(ctx context.Context, req *common.Void) (*pb.LoopbackInfo, error) {
-	loopdev := mixerapp.GetLoopDev()
+	loopdev := mixapp.GetLoopDev()
 	if loopdev == nil {
 		return nil, fmt.Errorf("not ready yet - try again later")
 	}
@@ -254,12 +273,20 @@ func (e *echoServer) GetLoopbackInfo(ctx context.Context, req *common.Void) (*pb
 	return res, nil
 }
 func (e *echoServer) SetIdleText(ctx context.Context, req *pb.IdleTextRequest) (*common.Void, error) {
-	ifp := mixerapp.DefaultIdleFrameProvider()
+	fmt.Printf("Setting idle text to \"%s\"\n", req.Text)
+	ifp := mixapp.DefaultIdleFrameProvider()
 	if ifp == nil {
 		return nil, fmt.Errorf("not ready yet - try again later")
 	}
-
+	ifp.SetIdleText(req.Text)
+	ifp.TriggerFrameNow()
+	return &common.Void{}, nil
+}
+func (e *echoServer) SetUserImage(ctx context.Context, req *pb.UserImageRequest) (*common.Void, error) {
+	fmt.Printf("Setting userimage text to \"%s\"\n", req.Text)
+	ifp := switcher_impl.GetCurrentUserImageProvider()
 	ifp.SetIdleText(func() string { return req.Text })
+	switcher_impl.ActivateUserFrames()
 	return &common.Void{}, nil
 }
 
@@ -268,12 +295,11 @@ func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*
 }
 
 func (e *echoServer) SetCountdown(ctx context.Context, req *pb.CountdownRequest) (*common.Void, error) {
-	ifp := mixerapp.DefaultIdleFrameProvider()
-	if ifp == nil {
-		return nil, fmt.Errorf("not ready yet - try again later")
-	}
+	ifp := switcher_impl.GetCurrentUserImageProvider()
 	ct := &countdowner{started: time.Now(), duration: time.Duration(req.Seconds) * time.Second}
 	ifp.SetIdleText(ct.getText)
+	switcher_impl.ActivateUserFrames()
+	fmt.Printf("Started countdown of %d seconds\n", ct.duration)
 	return &common.Void{}, nil
 }
 

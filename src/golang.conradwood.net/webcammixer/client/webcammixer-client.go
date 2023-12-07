@@ -27,11 +27,16 @@ var (
 	start_app   = flag.Bool("start_app", false, "start app in userspace")
 	cam         = flag.String("camera", "", "if non nil uses images server to stream cameras, e.g. cam://espcam1")
 	echoClient  pb.WebCamMixerClient
+	dyntext     = flag.String("dyntext", "", "if set, set a dynamic text")
 )
 
 func main() {
 	flag.Parse()
 	var err error
+	if *dyntext != "" {
+		utils.Bail("failed to set dyntext", DynText())
+		goto end
+	}
 	if *countdown != 0 {
 		utils.Bail("Failed to set camera", SetCountdown())
 		goto end
@@ -62,9 +67,10 @@ func main() {
 		goto end
 	}
 	if *app {
-		err = mixerapp.Start()
+		ma := &mixerapp.MixerApp{}
+		err = ma.Start()
 		utils.Bail("failed to start", err)
-		mixerapp.WaitUntilDone()
+		ma.WaitUntilDone()
 		os.Exit(0)
 	}
 	utils.Bail("failed to get capture devices", detect())
@@ -119,10 +125,12 @@ repeat:
 	if devnum == 0 {
 		term.Restore(int(os.Stdin.Fd()), oldState)
 		ctx := authremote.Context()
+
 		_, err = pb.GetWebCamMixerClient().SwitchToIdle(ctx, &common.Void{})
 		if err != nil {
 			return err
 		}
+
 		_, err = pb.GetWebCamMixerClient().SetIdleText(ctx, &pb.IdleTextRequest{Text: "standby..."})
 		if err != nil {
 			return err
@@ -143,6 +151,7 @@ repeat:
 	_, err = pb.GetWebCamMixerClient().SendFromCaptureDevice(ctx, d)
 	if err != nil {
 		term.Restore(int(os.Stdin.Fd()), oldState)
+		fmt.Printf("Failed to set device: %s\n", d.Device)
 		return err
 	}
 	goto repeat_with_print
@@ -182,4 +191,13 @@ func SetCountdown() error {
 	_, err := pb.GetWebCamMixerClient().SetCountdown(ctx, req)
 	fmt.Printf("Started countdown of %d seconds\n", req.Seconds)
 	return err
+}
+
+func DynText() error {
+	ctx := authremote.Context()
+	_, err := pb.GetWebCamMixerClient().SetUserImage(ctx, &pb.UserImageRequest{Text: *dyntext})
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -41,6 +41,7 @@ type FrameProvider interface {
 }
 
 func Open(name string, height, width uint32) (*LoopBackDevice, error) {
+
 	res := &LoopBackDevice{
 		timingChan:       make(chan bool),
 		frameHeight:      height,
@@ -96,6 +97,9 @@ func Open(name string, height, width uint32) (*LoopBackDevice, error) {
 
 	//	v4l2.SetPixFormat(res.Device.GetFD(), fdes[0], v4l2.BufTypeVideoOutput)
 	fmt.Printf("Opened loopback device %s size %dx%d (bytesperline=%d,bufsize=%d,field=%v) \n", res.DeviceName, npf.Width, npf.Height, npf.BytesPerLine, npf.SizeImage, npf.Field)
+	if !refcounter_started {
+		go refcounter()
+	}
 	return res, nil
 }
 

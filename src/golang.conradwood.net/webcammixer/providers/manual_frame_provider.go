@@ -1,4 +1,4 @@
-package mixerapp
+package providers
 
 type ManualFrameProvider struct {
 	lastFrame []byte

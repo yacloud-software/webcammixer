@@ -5,11 +5,16 @@ import (
 	"github.com/fogleman/gg"
 	"image/color"
 	// "strings"
+	"flag"
 	"image"
 	"image/draw"
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+)
+
+var (
+	debug = flag.Bool("debug_labeller", false, "debug mode for labeller")
 )
 
 /*
@@ -116,7 +121,9 @@ func (l *Labeller) PaintLabels(lt []*LabelDef) error {
 		line := lab.text
 		x := float64(lab.xpos)
 		y := float64(lab.ypos)
-		fmt.Printf("Setting text to \"%s\" @ %0.1fx%0.1f\n", line, x, y)
+		if *debug {
+			fmt.Printf("Setting text to \"%s\" @ %0.1fx%0.1f\n", line, x, y)
+		}
 		col := lab.colour
 		if col == nil {
 			dc.SetRGB255(0, 0, 0)

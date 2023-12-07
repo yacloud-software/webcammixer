@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/defaults"
+	"golang.conradwood.net/webcammixer/interfaces"
 	"golang.conradwood.net/webcammixer/loopback"
+	"golang.conradwood.net/webcammixer/providers"
 	"golang.conradwood.net/webcammixer/webcam"
 	"strings"
 	"sync"
@@ -14,10 +16,18 @@ import (
 var (
 	is_running_lock sync.RWMutex
 	loopdev         *loopback.LoopBackDevice
-	defidle         *IdleFrameProvider
+	defidle         *providers.IdleFrameProvider
 )
 
-func Start() error {
+type MixerApp struct {
+	switcher interfaces.Switcher
+}
+
+func (ma *MixerApp) SetSwitcher(sw interfaces.Switcher) {
+	ma.switcher = sw
+}
+
+func (ma *MixerApp) Start() error {
 	fmt.Printf("Starting webcammixer app...\n")
 	is_running_lock.Lock()
 	defer is_running_lock.Unlock()
@@ -66,7 +76,7 @@ func Start() error {
 		return fmt.Errorf("failed to open loopback device: %w", err)
 	}
 	fmt.Printf("Loopback opened: %#v\n", wi_loop.DeviceName)
-	defidle = NewIdleFrameProvider(loopdev.GetDimensions())
+	defidle = providers.NewIdleFrameProvider(loopdev.GetDimensions())
 	loopdev.SetProvider(defidle)
 	loopdev.SetTimingSource(defidle)
 	//	ifp.SetTimerTarget(loopdev.GetTimerChan())
@@ -89,7 +99,7 @@ func Start() error {
 			terr = err
 		}
 	}()
-	go idle_detect_thread(loopdev)
+	go ma.idle_detect_thread(loopdev)
 	fmt.Printf("Started webcammixer app\n")
 	// create albeit "incorrect" usage. we we add one to waitgroup, but call Done()
 	// when any one (or both) threads return.
@@ -102,33 +112,53 @@ func Start() error {
 	return nil
 }
 
-func WaitUntilDone() {
+func (ma *MixerApp) WaitUntilDone() {
 	is_running_lock.RLock()
 	is_running_lock.RUnlock()
 
 	fmt.Printf("Done.\n")
 }
 
-func GetLoopDev() *loopback.LoopBackDevice {
+func (ma *MixerApp) GetLoopDev() *loopback.LoopBackDevice {
 	return loopdev
 }
 
-func idle_detect_thread(l *loopback.LoopBackDevice) {
+func (ma *MixerApp) idle_detect_thread(l *loopback.LoopBackDevice) {
 	var last_restored time.Time
+	last_ref_count := 0
 	for {
 		time.Sleep(time.Duration(100) * time.Millisecond)
+
+		restore := false
+		reason := ""
 		if time.Since(l.TimeOfLastFrame()) > time.Duration(2)*time.Second {
-			if time.Since(last_restored) > time.Duration(5)*time.Second {
-				fmt.Printf("restoring idleframeprovider...\n")
-				ifp := DefaultIdleFrameProvider()
-				l.SetProvider(ifp)
-				l.SetTimingSource(ifp)
-				last_restored = time.Now()
+			reason = "no more frames"
+			restore = true
+		}
+		ls := loopback.Status()
+		if ls.RefCount >= 2 {
+			last_ref_count = ls.RefCount
+		} else {
+			if time.Since(ls.LastChange) > time.Duration(10)*time.Second {
+				if last_ref_count != ls.RefCount {
+					last_ref_count = ls.RefCount
+					reason = "kernel module not in use"
+					restore = true
+				}
 			}
+		}
+
+		if restore && time.Since(last_restored) > time.Duration(5)*time.Second {
+			fmt.Printf("restoring idleframeprovider (%s)...\n", reason)
+			ma.switcher.DeactivateUserFrames()
+			ifp := ma.DefaultIdleFrameProvider()
+			l.SetProvider(ifp)
+			l.SetTimingSource(ifp)
+			last_restored = time.Now()
 		}
 	}
 }
 
-func DefaultIdleFrameProvider() *IdleFrameProvider {
+func (ma *MixerApp) DefaultIdleFrameProvider() *providers.IdleFrameProvider {
 	return defidle
 }
