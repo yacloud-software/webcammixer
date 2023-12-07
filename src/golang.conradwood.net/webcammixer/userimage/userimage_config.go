@@ -15,28 +15,33 @@ type ext_converter interface {
 }
 
 type config struct {
+	convdef    string
 	ifp        *UserImageProvider
 	req        *pb.UserImageRequest
 	converters []*converter
-}
-
-type converter struct {
-	cfg  *config
-	typ  pb.ConverterType
-	lab  *labeller.Labeller // implements ext_converter
-	text func() string
 }
 
 func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 	res := &config{req: cfg, ifp: ifp}
 	for _, cv := range cfg.Converters {
 		c := &converter{
-			cfg: res,
-			typ: cv.Type,
+			convdef: cv,
+			cfg:     res,
+			typ:     cv.Type,
+			tmv: &text_mover{
+				red:   100,
+				green: 105,
+				blue:  55,
+			},
 		}
 		if cv.Type == pb.ConverterType_LABEL {
 			c.lab = labeller.NewLabellerForCfg(cv)
+			c.text = func() string { return cv.Text }
 		}
+		if cv.Type == pb.ConverterType_WEBCAM {
+			c.text = func() string { return cv.Text }
+		}
+
 		res.converters = append(res.converters, c)
 	}
 	current_config = res

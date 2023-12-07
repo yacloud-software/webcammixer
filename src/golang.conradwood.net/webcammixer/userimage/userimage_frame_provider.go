@@ -31,7 +31,6 @@ type UserImageProvider struct {
 	colour_going_down  bool
 	last_colour_update time.Time
 	cur_rgba           []uint8
-	idle_text          func() string
 	width              uint32
 	height             uint32
 	idleImage          image.Image
@@ -103,9 +102,8 @@ func (ifp *UserImageProvider) createIdleImageText() error {
 	xsize = int(w)
 	ysize = int(h)
 	txt := "."
-	if ifp.idle_text != nil {
-		txt = ifp.idle_text()
-	}
+	txt = "no-test"
+
 	l := labeller.NewLabellerForBlankCanvas(xsize, ysize, color.RGBA{0, 0, 0, 255})
 	l.SetFontSize(80)
 

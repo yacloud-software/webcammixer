@@ -3,6 +3,7 @@ package userimage
 import (
 	"bytes"
 	"fmt"
+	pb "golang.conradwood.net/apis/webcammixer"
 	"golang.conradwood.net/go-easyops/utils"
 	//	"golang.conradwood.net/webcammixer/converters"
 	"image"
@@ -18,10 +19,15 @@ const (
 
 func TestLabeller(t *testing.T) {
 	uip := NewUserImageProvider(WIDTH, HEIGHT)
+	uip.SetConfig(&pb.UserImageRequest{
+		Converters: []*pb.UserImageConverter{
+			&pb.UserImageConverter{Type: pb.ConverterType_LABEL, Text: "foobar"},
+		},
+	})
 	go uip.Run()
 	started := time.Now()
 	i := 0
-	for time.Since(started) < time.Duration(5)*time.Second {
+	for time.Since(started) < time.Duration(15)*time.Second {
 		time.Sleep(time.Duration(100) * time.Millisecond)
 		i++
 		img := uip.GetImage()

@@ -8,6 +8,15 @@ import (
 	"image/color"
 )
 
+type converter struct {
+	cfg     *config
+	convdef *pb.UserImageConverter
+	typ     pb.ConverterType
+	lab     *labeller.Labeller // implements ext_converter
+	text    func() string
+	tmv     *text_mover
+}
+
 func (c *converter) Modify(gctx *gg.Context) error {
 	if c.typ == pb.ConverterType_LABEL {
 		return c.modify_text(gctx)
@@ -16,25 +25,23 @@ func (c *converter) Modify(gctx *gg.Context) error {
 }
 
 func (c *converter) modify_text(gctx *gg.Context) error {
+	c.tmv.Step()
 	ifp := c.cfg.ifp
-	col := color.RGBA{ifp.cur_rgba[0], ifp.cur_rgba[1], ifp.cur_rgba[2], ifp.cur_rgba[3]}
+	col := c.tmv.RGBA()
 	xsize := 640
 	ysize := 480
 	h, w := ifp.GetDimensions()
 	xsize = int(w)
 	ysize = int(h)
 	txt := "."
-	if ifp.idle_text != nil {
-		txt = ifp.idle_text()
+	if c.text != nil {
+		txt = c.text()
 	}
 	l := labeller.NewLabellerForBlankCanvas(xsize, ysize, color.RGBA{0, 0, 0, 255})
 	l.SetFontSize(80)
 
-	x := 0
-	y := 0
-	x = x + ifp.TextXPOSAdjust
-	y = y + ifp.TextYPOSAdjust
-
+	x := c.tmv.X()
+	y := c.tmv.Y()
 	ld := l.NewLabel(x, y, col, txt)
 	err := l.PaintLabel(ld)
 	if err != nil {
