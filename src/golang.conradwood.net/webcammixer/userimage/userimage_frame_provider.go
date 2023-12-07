@@ -3,7 +3,7 @@ package userimage
 import (
 	"flag"
 	"fmt"
-	_ "github.com/fogleman/gg"
+	"github.com/fogleman/gg"
 	"golang.conradwood.net/webcammixer/converters"
 	"golang.conradwood.net/webcammixer/labeller"
 	"image"
@@ -51,9 +51,6 @@ func NewUserImageProvider(h, w uint32) *UserImageProvider {
 	}
 	return ifp
 }
-func (ifp *UserImageProvider) SetIdleText(s func() string) {
-	ifp.idle_text = s
-}
 
 // if target is non-null will send message to channel each time there is a new frame
 func (ifp *UserImageProvider) SetTimerTarget(target chan bool) error {
@@ -76,7 +73,7 @@ func (ifp *UserImageProvider) Run() error {
 			break
 		}
 		var err error
-		err = ifp.createIdleImageText()
+		err = ifp.createImage()
 		if err != nil {
 			fmt.Printf("failed to render idle text: %s\n", err)
 			time.Sleep(time.Duration(1500) * time.Millisecond)
@@ -122,18 +119,22 @@ func (ifp *UserImageProvider) createIdleImageText() error {
 	if err != nil {
 		return err
 	}
-	rawimage, err := converters.ConvertToRaw(l.GetImage())
+	ifp.idleImage = l.GetImage()
+	rawimage, err := converters.ConvertToRaw(ifp.idleImage)
 	if err != nil {
 		return err
 	}
 	ifp.idleImageRaw = rawimage.DefaultBytes()
 	ifp.idleImageLastFile = ""
 	return nil
-
 }
 
 func (ifp *UserImageProvider) GetID() string {
 	return "userimageframe"
+}
+
+func (ifp *UserImageProvider) GetImage() image.Image {
+	return ifp.idleImage
 }
 
 // called by looopback
@@ -197,4 +198,23 @@ func (ifp *UserImageProvider) CalcColour() {
 	} else {
 		ifp.TextYPOSAdjust = ifp.TextYPOSAdjust - pos_adjust
 	}
+}
+
+func (ifp *UserImageProvider) createImage() error {
+	cc := current_config
+	if cc == nil {
+		return ifp.createIdleImageText()
+	}
+
+	h, w := ifp.GetDimensions()
+	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
+	//	draw.Draw(img, img.Bounds(), &image.Uniform{col}, image.ZP, draw.Src)
+	dc := gg.NewContextForImage(img)
+	for _, conv := range cc.converters {
+		err := conv.Modify(dc)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -300,7 +300,7 @@ func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*
 func (e *echoServer) SetCountdown(ctx context.Context, req *pb.CountdownRequest) (*common.Void, error) {
 	ifp := switcher_impl.GetCurrentUserImageProvider()
 	ct := &countdowner{started: time.Now(), duration: time.Duration(req.Seconds) * time.Second}
-	ifp.SetIdleText(ct.getText)
+	ifp.SetText(ct.getText)
 	switcher_impl.ActivateUserFrames()
 	fmt.Printf("Started countdown of %d seconds\n", ct.duration)
 	return &common.Void{}, nil

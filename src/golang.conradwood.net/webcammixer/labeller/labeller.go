@@ -6,6 +6,7 @@ import (
 	"image/color"
 	// "strings"
 	"flag"
+	pb "golang.conradwood.net/apis/webcammixer"
 	"image"
 	"image/draw"
 	_ "image/gif"
@@ -57,6 +58,9 @@ type Labeller struct {
 	fontsize uint32
 }
 
+func NewLabellerForCfg(cfg *pb.UserImageConverter) *Labeller {
+	return NewLabellerForBlankCanvas(640, 640, color.RGBA{0, 0, 0, 255})
+}
 func NewLabellerForImage(img image.Image) *Labeller {
 	res := &Labeller{img: img}
 	res.set_defaults()
@@ -94,6 +98,10 @@ func (l *Labeller) NewLabel(x, y int, col color.RGBA, text string) *LabelDef {
 
 func (l *Labeller) GetImage() image.Image {
 	return l.img
+}
+
+func (l *Labeller) Modify(gg.Context) error {
+	return nil
 }
 
 // paint single label on to current image
