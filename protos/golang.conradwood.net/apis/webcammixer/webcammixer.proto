@@ -47,7 +47,9 @@ message CountdownRequest {
   string Text=1;
   uint32 Seconds=2;    
 }
-
+message UserImageRequest {
+  string Text=1;
+}
 // feed an image to v4l2loopback
 service WebCamMixer {
   // send one or more images to v4l
@@ -74,4 +76,6 @@ mostly useful for testing converters
   rpc GetCaptureDevices(common.Void) returns(CaptureDeviceList);
   // rpc display a message and countdown
   rpc SetCountdown(CountdownRequest) returns (common.Void);
+  // set a text that frequently changes
+  rpc SetUserImage(UserImageRequest) returns (common.Void);
 }
