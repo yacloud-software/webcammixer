@@ -6,6 +6,10 @@ import (
 	// "golang.conradwood.net/webcammixer/labeller"
 )
 
+const (
+	DEFAULT_BINARY = "/usr/local/bin/webcammixer_ext_binary"
+)
+
 var (
 	current_config *config
 )
@@ -38,6 +42,16 @@ func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 			//			c.lab = labeller.NewLabellerForCfg(cv)
 			c.text = func() string { return cv.Text }
 		}
+
+		if cv.Type == pb.ConverterType_EXT_BINARY {
+			// needs no config
+			ebin, err := GetExtBinary(DEFAULT_BINARY)
+			if err != nil {
+				return err
+			}
+			c.extbin = ebin
+		}
+
 		if cv.Type == pb.ConverterType_WEBCAM {
 			h, w := ifp.GetDimensions()
 			vcs, err := res.ifp.sourceMixer.SourceActivateVideoDef(cv.Device.Device, h, w)

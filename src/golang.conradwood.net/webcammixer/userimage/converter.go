@@ -12,14 +12,16 @@ import (
 	//	"image/draw"
 )
 
+// the converter modifies the image. a chain of converters modifies the image at each step
 type converter struct {
 	cfg     *config
 	convdef *pb.UserImageConverter
 	typ     pb.ConverterType
 	//	lab     *labeller.Labeller // implements ext_converter
-	text func() string
-	tmv  *text_mover
-	vcs  interfaces.VideoCamSource
+	text   func() string
+	tmv    *text_mover
+	vcs    interfaces.VideoCamSource
+	extbin ExtBinary
 }
 
 func (c *converter) Modify(gctx *gg.Context) error {
@@ -29,6 +31,16 @@ func (c *converter) Modify(gctx *gg.Context) error {
 	if c.typ == pb.ConverterType_LABEL {
 		return c.modify_text(gctx)
 	}
+	if c.typ == pb.ConverterType_EXT_BINARY {
+		return c.modify_through_extbin(gctx)
+	}
+	return nil
+}
+
+func (c *converter) modify_through_extbin(gctx *gg.Context) error {
+	//TODO: implement ext binary
+	h, w := c.cfg.ifp.GetDimensions()
+	c.extbin.Call_Modify(nil, h, w)
 	return nil
 }
 
