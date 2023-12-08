@@ -38,7 +38,7 @@ func (c *converter) Modify(gctx *gg.Context) error {
 }
 
 func (c *converter) modify_through_extbin(gctx *gg.Context) error {
-	//TODO: implement ext binary
+	//TODO: figure out an input format for ext_binary
 	h, w := c.cfg.ifp.GetDimensions()
 	c.extbin.Call_Modify(nil, h, w)
 	return nil

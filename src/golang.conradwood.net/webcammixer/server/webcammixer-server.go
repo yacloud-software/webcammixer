@@ -307,7 +307,7 @@ func (e *echoServer) SetUserImageText(ctx context.Context, req *pb.SetTextReques
 }
 func (e *echoServer) StopUserImage(ctx context.Context, req *common.Void) (*common.Void, error) {
 	fmt.Printf("stopping userimage ...\n")
-	return e.SetIdleText(ctx, &pb.IdleTextRequest{"standby..."})
+	return e.SetIdleText(ctx, &pb.IdleTextRequest{Text: "standby..."})
 }
 func (e *echoServer) SetUserImage(ctx context.Context, req *pb.UserImageRequest) (*common.Void, error) {
 	fmt.Printf("Setting userimage ...\n")
