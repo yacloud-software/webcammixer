@@ -47,7 +47,10 @@ message CountdownRequest {
   string Text=1;
   uint32 Seconds=2;    
 }
-
+message FrameProvider {
+  string HumanReadableDesc=1;
+}
+// ************************************ special userimage provider which does a chain of things to modify streams ******/
 enum ConverterType {
   UNDEFINED=0;
   WEBCAM=1;
@@ -59,10 +62,20 @@ message UserImageConverter {
   string Text=2;
   CaptureDevice Device=3;
 }
-
+message SetTextRequest {
+  string Text=1;
+}
 message UserImageRequest {
   repeated UserImageConverter Converters=1; // it's a chain of things to set up
 }
+
+message DisplayTextRequest {
+  bool ContinueCamera=1; // if true allow current (if any) camera to continue showing an image
+  uint32 MaxSeconds=2;
+  bool Blink=3; // if true blink text ;)
+  string Text=4;
+}
+
 // feed an image to v4l2loopback
 service WebCamMixer {
   // send one or more images to v4l
@@ -91,4 +104,12 @@ mostly useful for testing converters
   rpc SetCountdown(CountdownRequest) returns (common.Void);
   // set a text that frequently changes
   rpc SetUserImage(UserImageRequest) returns (common.Void);
+  // stop frequently changing stuff, go back to what it was before starting userimage
+  rpc StopUserImage(common.Void) returns (common.Void);
+  // set a text for dynamic userimage stuff that frequently changes
+  rpc SetUserImageText(SetTextRequest) returns (common.Void);
+  // get current frameprovider
+  rpc GetCurrentProvider(common.Void) returns (FrameProvider);
+  // set a dynamic text just for a bit of time, using existing config if possible, e.g. with video overlay. ignored if nobody is watching
+  rpc DisplayText(DisplayTextRequest) returns (common.Void);
 }
