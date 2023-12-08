@@ -58,6 +58,9 @@ type LoopbackStatus struct {
 	LastChange time.Time
 }
 
+func IsWatched() bool {
+	return loopback_refcnt > 1
+}
 func Status() *LoopbackStatus {
 	return &LoopbackStatus{
 		LastChange: last_change,

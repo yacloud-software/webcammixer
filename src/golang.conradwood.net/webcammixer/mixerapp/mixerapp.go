@@ -118,7 +118,14 @@ func (ma *MixerApp) WaitUntilDone() {
 
 	fmt.Printf("Done.\n")
 }
+func (ma *MixerApp) GetCurrentProvider() loopback.FrameProvider {
+	lp := ma.GetLoopDev()
+	if lp == nil {
+		return nil
+	}
+	return lp.GetFrameProvider()
 
+}
 func (ma *MixerApp) GetLoopDev() *loopback.LoopBackDevice {
 	return loopdev
 }

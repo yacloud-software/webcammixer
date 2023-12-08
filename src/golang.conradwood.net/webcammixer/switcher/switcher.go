@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	userframe_active = false
 	mixerapp         interfaces.MixerApp
 	getuserimagelock sync.Mutex
 	def_user_image   *userimage.UserImageProvider
@@ -54,6 +55,10 @@ func (sw *switcher) get_user_image_provider(x, y uint32) *userimage.UserImagePro
 	return def_user_image
 }
 
+func (sw *switcher) IsUserFrameActive() bool {
+	return userframe_active
+}
+
 func (sw *switcher) ActivateUserFrames() error {
 	mfp := sw.GetCurrentUserImageProvider()
 	loopdev := mixerapp.GetLoopDev()
@@ -62,6 +67,7 @@ func (sw *switcher) ActivateUserFrames() error {
 	}
 	loopdev.SetProvider(mfp)
 	loopdev.SetTimingSource(mfp)
+	userframe_active = true
 	return nil
 }
 func (sw *switcher) DeactivateUserFrames() error {
@@ -72,5 +78,6 @@ func (sw *switcher) DeactivateUserFrames() error {
 	}
 	def_user_image.Stop()
 	def_user_image = nil
+	userframe_active = false
 	return nil
 }

@@ -59,7 +59,7 @@ func SourceDectivateAll() error {
 
 // called by loopback device
 func (v *VideoCamSource) GetID() string {
-	return "webcam-" + v.videoDeviceName
+	return "webcam://" + v.videoDeviceName
 }
 
 // called by loopback device

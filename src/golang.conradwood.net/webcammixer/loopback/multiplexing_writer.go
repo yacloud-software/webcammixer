@@ -4,6 +4,15 @@ import (
 	"fmt"
 )
 
+func (l *LoopBackDevice) GetFrameProvider() FrameProvider {
+	l.frameProviderLock.Lock()
+	defer l.frameProviderLock.Unlock()
+	for _, v := range l.frameProviders {
+		return v
+	}
+	return nil
+
+}
 func (l *LoopBackDevice) AddProvider(f FrameProvider) {
 	l.frameProviderLock.Lock()
 	l.frameProviders[f.GetID()] = f

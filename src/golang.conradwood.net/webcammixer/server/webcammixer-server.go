@@ -122,6 +122,7 @@ func (e *echoServer) SwitchToIdle(ctx context.Context, req *common.Void) (*commo
 	mixapp.DefaultIdleFrameProvider().TriggerFrameNow()
 	return &common.Void{}, nil
 }
+
 func (e *echoServer) SwitchToLiveImages(ctx context.Context, req *pb.URL) (*common.Void, error) {
 	switcher_impl.DeactivateUserFrames()
 	mfp := NewLiveImageProvider(req.URL, mixapp.GetLoopDev())
@@ -133,6 +134,18 @@ func (e *echoServer) SwitchToLiveImages(ctx context.Context, req *pb.URL) (*comm
 	loopdev.SetProvider(mfp)
 	loopdev.SetTimingSource(mfp)
 	return &common.Void{}, nil
+}
+func (e *echoServer) GetCurrentProvider(ctx context.Context, req *common.Void) (*pb.FrameProvider, error) {
+	loopdev := mixapp.GetLoopDev()
+	if loopdev == nil {
+		return nil, fmt.Errorf("not ready yet - try again later")
+	}
+	res := &pb.FrameProvider{}
+	ld := loopdev.GetFrameProvider()
+	if ld != nil {
+		res.HumanReadableDesc = ld.GetID()
+	}
+	return res, nil
 }
 func (e *echoServer) SendFrames(srv pb.WebCamMixer_SendFramesServer) error {
 	switcher_impl.DeactivateUserFrames()
@@ -285,6 +298,16 @@ func (e *echoServer) SetIdleText(ctx context.Context, req *pb.IdleTextRequest) (
 	ifp.SetIdleText(req.Text)
 	ifp.TriggerFrameNow()
 	return &common.Void{}, nil
+}
+func (e *echoServer) SetUserImageText(ctx context.Context, req *pb.SetTextRequest) (*common.Void, error) {
+	fmt.Printf("Setting userimage text to \"%s\"\n", req.Text)
+	ifp := switcher_impl.GetCurrentUserImageProvider()
+	ifp.SetText(func() string { return req.Text })
+	return &common.Void{}, nil
+}
+func (e *echoServer) StopUserImage(ctx context.Context, req *common.Void) (*common.Void, error) {
+	fmt.Printf("stopping userimage ...\n")
+	return e.SetIdleText(ctx, &pb.IdleTextRequest{"standby..."})
 }
 func (e *echoServer) SetUserImage(ctx context.Context, req *pb.UserImageRequest) (*common.Void, error) {
 	fmt.Printf("Setting userimage ...\n")

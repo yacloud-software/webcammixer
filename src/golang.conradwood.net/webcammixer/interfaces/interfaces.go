@@ -10,6 +10,7 @@ type MixerApp interface {
 	GetLoopDev() *loopback.LoopBackDevice
 	Start() error
 	SetSwitcher(Switcher)
+	GetCurrentProvider() loopback.FrameProvider
 }
 type Switcher interface {
 	DeactivateUserFrames() error
