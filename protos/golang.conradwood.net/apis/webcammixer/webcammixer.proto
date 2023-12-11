@@ -5,6 +5,12 @@ option go_package = "golang.conradwood.net/apis/webcammixer";
 option java_package = "net.conradwood.apis.webcammixer";
 import "golang.conradwood.net/apis/common/common.proto";
 
+message Colour {
+  uint32 Red=1; // [0..255]
+  uint32 Green=2;// [0..255]
+  uint32 Blue=3;// [0..255]
+}
+
 // break down one or more images into transportable chunks
 message ImageStream {
   bool NextImage=1; // if this changes the current image is finished and a new one starts
@@ -69,14 +75,22 @@ enum ConverterType {
 message UserImageConverter {
   ConverterType Type=1;
   string Text=2;
-  CaptureDevice Device=3;
   OverlayImageRequest OverlayImage=4;
+  string Reference=5;
+  CaptureDevice Device=6; // could be a capture device to overlay on to image
 }
 message SetTextRequest {
   string Text=1;
 }
 message UserImageRequest {
   repeated UserImageConverter Converters=1; // it's a chain of things to set up
+  ImageSource ImageSource=2; // the source to get the initial picture from before converters are applied
+}
+// it is either device, image or "fill"
+message ImageSource {
+  CaptureDevice Device=1; // could be a capture device
+  OverlayImageRequest Image=2; // could be an image
+  Colour FillColour=3;
 }
 message OverlayImageRequest  {
   uint32 XPos=1;
