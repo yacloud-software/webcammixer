@@ -19,14 +19,22 @@ type converter struct {
 	convdef *pb.UserImageConverter
 	typ     pb.ConverterType
 	//	lab     *labeller.Labeller // implements ext_converter
-	text              func() string
-	tmv               *text_mover
-	vcs               interfaces.VideoCamSource
-	extbin            ExtBinary
-	image             image.Image // for image modifier
-	image_x           uint32
-	image_y           uint32
-	input_has_changed bool // reset by renderer and set if text/image are changed
+	text               func() string
+	tmv                *text_mover
+	vcs                interfaces.VideoCamSource
+	extbin             ExtBinary
+	image              image.Image // for image modifier
+	image_x            uint32
+	image_y            uint32
+	input_has_changed  bool // reset by renderer and set if text/image are changed
+	last_text_rendered *last_text
+}
+
+// what was last text like? (to compute input_has_changed)
+type last_text struct {
+	text string
+	X    int
+	Y    int
 }
 
 // returns true if the image was _actually_ modified
@@ -81,6 +89,13 @@ func (c *converter) webcam(gctx *gg.Context) (bool, error) {
 }
 func (c *converter) has_changed_text() bool {
 	c.tmv.Step()
+	lt := c.last_text_rendered
+	if lt == nil {
+		return true
+	}
+	if lt.X == c.tmv.X() && lt.Y == c.tmv.Y() && c.text() != "" && c.text() == lt.text {
+		return false
+	}
 	return c.input_has_changed
 }
 func (c *converter) has_changed_image() bool {
@@ -100,17 +115,24 @@ func (c *converter) modify_text(gctx *gg.Context) (bool, error) {
 	if c.text == nil {
 		return false, nil
 	}
+	lt := c.last_text_rendered
+	if lt == nil {
+		lt = &last_text{}
+		c.last_text_rendered = lt
+	}
+
 	//	ifp := c.cfg.ifp
 	col := c.tmv.RGBA()
 	txt := c.text()
 	if txt == "" {
 		return false, nil
 	}
+	x := c.tmv.X()
+	y := c.tmv.Y()
+
 	l := labeller.NewLabellerForCtx(gctx)
 	l.SetFontSize(60)
 
-	x := c.tmv.X()
-	y := c.tmv.Y()
 	ld := l.NewLabel(x, y, col, txt)
 	err := l.PaintLabel(ld)
 	if err != nil {
@@ -121,5 +143,8 @@ func (c *converter) modify_text(gctx *gg.Context) (bool, error) {
 	c.tmv.text_width = w
 	//	c.input_has_changed = false
 	//	fmt.Printf("Label \"%s\" added at %dx%d\n", txt, x, y)
+	lt.X = x
+	lt.Y = y
+	lt.text = txt
 	return true, nil
 }

@@ -98,6 +98,7 @@ retry:
 	npf, err := v4l2.SetPixFormat2(dev.GetFD(), pf, v4l2.BufTypeVideoCapture)
 	//fmt.Printf("AFTER: %s\n", npf.String())
 	if err != nil {
+		fmt.Printf("Unable to get pixformat %dx%d: %s\n", pf.Width, pf.Height, err)
 		dev.Close()
 		return nil, err
 	}

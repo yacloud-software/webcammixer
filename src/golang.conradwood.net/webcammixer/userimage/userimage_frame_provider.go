@@ -6,18 +6,13 @@ import (
 	"github.com/fogleman/gg"
 	"golang.conradwood.net/webcammixer/converters"
 	"golang.conradwood.net/webcammixer/interfaces"
+	"golang.conradwood.net/webcammixer/rates"
 	"image"
 	//	"image/draw"
-	"golang.conradwood.net/go-easyops/utils"
 	//	"image/color"
 	_ "image/jpeg"
 	_ "image/png"
 	"time"
-)
-
-const (
-	TEXT_MINX = 100
-	TEXT_MINY = 100
 )
 
 var (
@@ -36,22 +31,16 @@ type UserImageProvider struct {
 	conv_image               image.Image // last iamge coming out of converter-chain (same as frame)
 	notify                   chan bool
 	merge_chan               chan bool
-	counter_source           utils.RateCalculator
-	counter_modify           utils.RateCalculator
-	counter_merge            utils.RateCalculator
 	converters_had_no_impact bool // set to true if no converter had any impact (produced an image of sort)
 }
 
 // blocks and provides "idle" frame
 func NewUserImageProvider(sm interfaces.SourceMixer, h, w uint32) *UserImageProvider {
 	ifp := &UserImageProvider{
-		sourceMixer:    sm,
-		width:          w,
-		height:         h,
-		merge_chan:     make(chan bool, 30),
-		counter_source: utils.NewRateCalculator("source"),
-		counter_modify: utils.NewRateCalculator("modify"),
-		counter_merge:  utils.NewRateCalculator("merge"),
+		sourceMixer: sm,
+		width:       w,
+		height:      h,
+		merge_chan:  make(chan bool, 30),
 	}
 	return ifp
 }
@@ -77,14 +66,9 @@ func (ifp *UserImageProvider) Run() error {
 	fmt.Printf("Starting userframe provider with dimensions %dx%d...\n", w, h)
 	go ifp.modifier_loop()
 	go ifp.merge_loop()
-	print := time.Now()
 	for {
 		if ifp.stop_requested {
 			break
-		}
-		if time.Since(print) > time.Duration(3)*time.Second {
-			print = time.Now()
-			fmt.Printf("Source-rate: %0.1f, Modify-Rate: %0.1f, Merge-Rate: %0.1f\n", ifp.counter_source.Rate(), ifp.counter_modify.Rate(), ifp.counter_merge.Rate())
 		}
 		src := ifp.imageSource
 		if src == nil {
@@ -97,7 +81,7 @@ func (ifp *UserImageProvider) Run() error {
 		//
 		case <-src.GetTimingChannel():
 		}
-		ifp.counter_source.Add(1)
+		rates.Inc("videosource")
 		if len(ifp.merge_chan) < 10 {
 			ifp.merge_chan <- true
 		}
@@ -113,7 +97,7 @@ func (ifp *UserImageProvider) Run() error {
 // this runs asynchronous to merge the update(s) with the source frames and send them to loop back device
 func (ifp *UserImageProvider) merge_loop() {
 	for !ifp.stop_requested {
-		ifp.counter_merge.Add(1)
+		rates.Inc("merge")
 		<-ifp.merge_chan
 		src := ifp.imageSource
 		if src == nil {
@@ -160,7 +144,7 @@ func (ifp *UserImageProvider) modifier_loop() {
 		var err error
 		err = ifp.createImage()
 		last_run = time.Now()
-		ifp.counter_modify.Add(1)
+		rates.Inc("modify")
 		if err != nil {
 			fmt.Printf("failed to render idle text: %s\n", err)
 			time.Sleep(time.Duration(1500) * time.Millisecond)

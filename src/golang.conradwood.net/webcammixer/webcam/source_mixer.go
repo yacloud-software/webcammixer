@@ -7,6 +7,7 @@ import (
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/converters"
 	"golang.conradwood.net/webcammixer/interfaces"
+	"golang.conradwood.net/webcammixer/rates"
 	"golang.org/x/image/draw"
 	"image"
 	"sync"
@@ -20,18 +21,22 @@ var (
 )
 
 type VideoCamSource struct {
-	videoDeviceName string
-	lastFrame       *VideoCamFrame
-	frameChan       <-chan []byte // this comes from the underlying v4l device
-	isRunning       bool
-	lock            sync.Mutex
-	cam             string
-	wci             *WebCamInfo
-	threadRunning   bool
-	onNewFrame      chan bool // if non-nil send a bool each time a new frame is received. intented as a timing source, not a frame queueing thing. it's expected that the called function triggers a channel, and the new thread calls GetLastImage() for all active sources
-	lastFrameUsed   time.Time // last time a frame was actually used (e.g. we had a channel)
-	height          uint32    // height of frames we must produce
-	width           uint32    // width of frames we must produce
+	videoDeviceName   string
+	lastReceivedFrame *VideoCamFrame
+	postProcessChan   chan bool
+	lastFrame         *VideoCamFrame // lastReceivedFrame, but post-processed
+	frameChan         <-chan []byte  // this comes from the underlying v4l device
+	isRunning         bool
+	lock              sync.Mutex
+	cam               string
+	wci               *WebCamInfo
+	threadRunning     bool
+	onNewFrame        chan bool // if non-nil send a bool each time a new frame is received. intented as a timing source, not a frame queueing thing. it's expected that the called function triggers a channel, and the new thread calls GetLastImage() for all active sources
+	lastFrameUsed     time.Time // last time a frame was actually used (e.g. we had a channel)
+	height            uint32    // height of frames we must produce
+	width             uint32    // width of frames we must produce
+	keep_running      bool
+	pf                v4l2.PixFormat
 }
 type sourceMixer struct {
 }
@@ -92,7 +97,11 @@ func (sm *sourceMixer) GetOrCreateWebcamStream(devicename string) *VideoCamSourc
 	defer source_mixer_lock.Unlock()
 	vs, exists := webcam_sources[devicename]
 	if !exists {
-		vs = &VideoCamSource{videoDeviceName: devicename}
+		vs = &VideoCamSource{
+			videoDeviceName: devicename,
+			keep_running:    true,
+			postProcessChan: make(chan bool, 10),
+		}
 		webcam_sources[devicename] = vs
 	}
 	return vs
@@ -122,8 +131,10 @@ func (v *VideoCamSource) Activate(height, width uint32) error {
 			return err
 		}
 	}
+	v.pf = v.wci.GetActualPixelFormat()
 
 	go v.readerThread()
+	go v.postProcessingThread()
 	fmt.Printf("Opened device \"%s\"...\n", v.videoDeviceName)
 	return nil
 }
@@ -152,38 +163,65 @@ func (v *VideoCamSource) readerThread() {
 		v.threadRunning = false
 	}()
 
-	must_convert := false
-	pf := v.wci.GetActualPixelFormat()
-	if pf.Height != v.height || pf.Width != v.width {
-		must_convert = true
-		fmt.Printf("Warning - device %s must scale\n", v.videoDeviceName)
-	}
-	last_printed := time.Now()
-	stop_reason := ""
-	for {
+	for v.keep_running {
 		frame := <-v.frameChan
+		if len(frame) == 0 {
+			time.Sleep(time.Duration(100) * time.Millisecond)
+			continue
+		}
+		rates.Inc("v4l2-reader")
 		vcf := &VideoCamFrame{
 			created: time.Now(),
 			data:    frame,
-			format:  pf,
+			format:  v.pf,
+		}
+		v.lastReceivedFrame = vcf
+		if len(v.postProcessChan) < 5 {
+			v.postProcessChan <- true
+		}
+
+	}
+	v.wci.Close()
+	fmt.Printf("Webcam %s stopped\n", v.videoDeviceName)
+	v.threadRunning = false
+	v.frameChan = nil
+	v.isRunning = false // RACE CONDITION
+}
+func (v *VideoCamSource) postProcessingThread() {
+	last_printed := time.Now()
+	var last_checked time.Time
+	last_printed = time.Now()
+	must_convert := true
+	for v.keep_running {
+		<-v.postProcessChan
+		vcf := v.lastReceivedFrame
+		if time.Since(last_checked) > time.Duration(2)*time.Second {
+			pf := v.wci.GetActualPixelFormat()
+			v.pf = pf
+			must_convert = false
+			if pf.Height != v.height || pf.Width != v.width {
+				must_convert = true
+				if time.Since(last_printed) > time.Duration(30)*time.Second {
+					last_printed = time.Now()
+					fmt.Printf("Warning - device %s must scale\n", v.videoDeviceName)
+				}
+			}
+			last_checked = time.Now()
+		}
+		if vcf == nil {
+			continue
 		}
 		if must_convert {
-			if pf.Height == v.height && pf.Width == v.width {
-				must_convert = false
-			}
-
 			st := time.Now()
 			vcf = v.convert_video_frame(vcf)
 			dur := time.Since(st)
 			if time.Since(last_printed) > time.Duration(10)*time.Second {
-				fmt.Printf("WARNING: converting video from %dx%d to %dx%d(took %d)\n", pf.Width, pf.Height, v.width, v.height, dur.Milliseconds())
+				fmt.Printf("WARNING: converting video from %dx%d to %dx%d(took %d)\n", v.pf.Width, v.pf.Height, v.width, v.height, dur.Milliseconds())
 				last_printed = st
 			}
 		}
 		v.lastFrame = vcf
-		if len(frame) == 0 {
-			time.Sleep(time.Duration(400) * time.Millisecond)
-		}
+
 		//fmt.Printf("Got frame from device %s.\n", v.videoDeviceName)
 		c := v.onNewFrame
 		if c != nil {
@@ -192,15 +230,11 @@ func (v *VideoCamSource) readerThread() {
 		}
 		if time.Since(v.lastFrameUsed) >= *webcam_idle_timeout {
 			// no longer in use (no listener for the frames...)
-			stop_reason = "no listener channel for frames"
-			break
+			v.keep_running = false
 		}
+		rates.Inc("v4l2-postprocessor")
+
 	}
-	v.wci.Close()
-	fmt.Printf("Webcam %s stopped (thread exit: %s)\n", v.videoDeviceName, stop_reason)
-	v.threadRunning = false
-	v.frameChan = nil
-	v.isRunning = false // RACE CONDITION
 }
 func (v *VideoCamSource) SetTimerTarget(c chan bool) error {
 	v.onNewFrame = c
