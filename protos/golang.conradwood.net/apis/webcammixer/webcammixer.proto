@@ -50,17 +50,27 @@ message CountdownRequest {
 message FrameProvider {
   string HumanReadableDesc=1;
 }
+// ************************************ chain config ****************************************/
+message ChainConfig {
+  repeated ChainConverter Converters=1;
+}
+message ChainConverter {
+  string Reference=1;
+}
+
 // ************************************ special userimage provider which does a chain of things to modify streams ******/
 enum ConverterType {
   UNDEFINED=0;
   WEBCAM=1;
   LABEL=2;
   EXT_BINARY=3;
+  OVERLAY_IMAGE=4;
 }
 message UserImageConverter {
   ConverterType Type=1;
   string Text=2;
   CaptureDevice Device=3;
+  OverlayImageRequest OverlayImage=4;
 }
 message SetTextRequest {
   string Text=1;
@@ -68,7 +78,11 @@ message SetTextRequest {
 message UserImageRequest {
   repeated UserImageConverter Converters=1; // it's a chain of things to set up
 }
-
+message OverlayImageRequest  {
+  uint32 XPos=1;
+  uint32 YPos=2;
+  bytes Image=3; //e.g.a "png"
+}
 message DisplayTextRequest {
   bool ContinueCamera=1; // if true allow current (if any) camera to continue showing an image
   uint32 MaxSeconds=2;
@@ -112,4 +126,6 @@ mostly useful for testing converters
   rpc GetCurrentProvider(common.Void) returns (FrameProvider);
   // set a dynamic text just for a bit of time, using existing config if possible, e.g. with video overlay. ignored if nobody is watching
   rpc DisplayText(DisplayTextRequest) returns (common.Void);
+  // set a dynamic overlay image
+  rpc DisplayOverlayImage(OverlayImageRequest) returns (common.Void);
 }
