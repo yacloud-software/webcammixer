@@ -75,8 +75,16 @@ func get_emoji(utf8 string) (image.Image, error) {
 	if em.Emoji == nil {
 		return nil, fmt.Errorf("No Emoji png for \"%s\" (%d results)", utf8, len(em.Defs))
 	}
+	png_data := em.Emoji.PNG
 
-	img, _, err := image.Decode(bytes.NewReader(em.Emoji.PNG))
+	ge := &images.EmojiRequest{Unicode: em.Emoji.Def.Unicode, Size: 80}
+	emm, err := images.GetImagesClient().GetEmoji(ctx, ge)
+	if err != nil {
+		fmt.Printf("Failed to get emoji, size %d\n", ge.Size)
+	} else {
+		png_data = emm.PNG
+	}
+	img, _, err := image.Decode(bytes.NewReader(png_data))
 	if err != nil {
 		return nil, err
 	}
