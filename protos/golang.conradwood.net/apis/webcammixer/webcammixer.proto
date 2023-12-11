@@ -71,6 +71,7 @@ enum ConverterType {
   LABEL=2;
   EXT_BINARY=3;
   OVERLAY_IMAGE=4;
+  EMOJI=5;
 }
 message UserImageConverter {
   ConverterType Type=1;
@@ -78,6 +79,7 @@ message UserImageConverter {
   OverlayImageRequest OverlayImage=4;
   string Reference=5;
   CaptureDevice Device=6; // could be a capture device to overlay on to image
+  string Emoji=7; // UTF-8
 }
 message SetTextRequest {
   string Text=1;
