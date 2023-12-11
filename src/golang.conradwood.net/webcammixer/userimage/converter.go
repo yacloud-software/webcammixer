@@ -8,7 +8,8 @@ import (
 	"golang.conradwood.net/webcammixer/labeller"
 	//	"golang.conradwood.net/webcammixer/webcam"
 	//	"image/color"
-	//	"image"
+	"fmt"
+	"image"
 	//	"image/draw"
 )
 
@@ -18,27 +19,31 @@ type converter struct {
 	convdef *pb.UserImageConverter
 	typ     pb.ConverterType
 	//	lab     *labeller.Labeller // implements ext_converter
-	text   func() string
-	tmv    *text_mover
-	vcs    interfaces.VideoCamSource
-	extbin ExtBinary
+	text    func() string
+	tmv     *text_mover
+	vcs     interfaces.VideoCamSource
+	extbin  ExtBinary
+	image   image.Image // for image modifier
+	image_x uint32
+	image_y uint32
 }
 
 func (c *converter) Modify(gctx *gg.Context) error {
 	if c.typ == pb.ConverterType_WEBCAM {
 		return c.webcam(gctx)
-	}
-	if c.typ == pb.ConverterType_LABEL {
+	} else if c.typ == pb.ConverterType_LABEL {
 		return c.modify_text(gctx)
-	}
-	if c.typ == pb.ConverterType_EXT_BINARY {
+	} else if c.typ == pb.ConverterType_EXT_BINARY {
 		return c.modify_through_extbin(gctx)
+	} else if c.typ == pb.ConverterType_OVERLAY_IMAGE {
+		return c.modify_image(gctx)
+	} else {
+		return fmt.Errorf("cannot modify \"%v\" yet", c.typ)
 	}
-	return nil
 }
 
 func (c *converter) modify_through_extbin(gctx *gg.Context) error {
-	//TODO: figure out an input format for ext_binary
+	//TODO: implement ext binary
 	h, w := c.cfg.ifp.GetDimensions()
 	c.extbin.Call_Modify(nil, h, w)
 	return nil
@@ -59,9 +64,18 @@ func (c *converter) webcam(gctx *gg.Context) error {
 	return nil
 }
 
+func (c *converter) modify_image(gctx *gg.Context) error {
+	img := c.image
+	if img == nil {
+		return nil
+	}
+	gctx.DrawImage(img, int(c.image_x), int(c.image_y))
+	//	fmt.Printf("Drawing image at %dx%d\n", c.image_x, c.image_y)
+	return nil
+}
 func (c *converter) modify_text(gctx *gg.Context) error {
 	c.tmv.Step()
-	ifp := c.cfg.ifp
+	//	ifp := c.cfg.ifp
 	col := c.tmv.RGBA()
 	txt := "."
 	if c.text != nil {
@@ -77,12 +91,5 @@ func (c *converter) modify_text(gctx *gg.Context) error {
 	if err != nil {
 		return err
 	}
-	ifp.idleImage = l.GetImage()
-	rawimage, err := converters.ConvertToRaw(ifp.idleImage)
-	if err != nil {
-		return err
-	}
-	ifp.idleImageRaw = rawimage.DefaultBytes()
-	ifp.idleImageLastFile = ""
 	return nil
 }

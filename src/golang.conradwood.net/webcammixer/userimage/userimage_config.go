@@ -1,9 +1,12 @@
 package userimage
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/fogleman/gg"
 	pb "golang.conradwood.net/apis/webcammixer"
 	// "golang.conradwood.net/webcammixer/labeller"
+	"image"
 )
 
 const (
@@ -28,6 +31,7 @@ type config struct {
 func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 	res := &config{req: cfg, ifp: ifp}
 	for _, cv := range cfg.Converters {
+		fmt.Printf("Config: Adding \"%v\"\n", cv.Type)
 		c := &converter{
 			convdef: cv,
 			cfg:     res,
@@ -41,18 +45,28 @@ func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 		if cv.Type == pb.ConverterType_LABEL {
 			//			c.lab = labeller.NewLabellerForCfg(cv)
 			c.text = func() string { return cv.Text }
-		}
-
-		if cv.Type == pb.ConverterType_EXT_BINARY {
+		} else if cv.Type == pb.ConverterType_EXT_BINARY {
 			// needs no config
 			ebin, err := GetExtBinary(DEFAULT_BINARY)
 			if err != nil {
 				return err
 			}
 			c.extbin = ebin
-		}
+		} else if cv.Type == pb.ConverterType_OVERLAY_IMAGE {
+			// an image handler
+			oir := cv.OverlayImage
+			if oir != nil {
+				b := bytes.NewReader(oir.Image)
+				img, _, err := image.Decode(b)
+				if err != nil {
+					return err
+				}
+				c.image = img
+				c.image_x = oir.XPos
+				c.image_y = oir.YPos
+			}
 
-		if cv.Type == pb.ConverterType_WEBCAM {
+		} else if cv.Type == pb.ConverterType_WEBCAM {
 			h, w := ifp.GetDimensions()
 			vcs, err := res.ifp.sourceMixer.SourceActivateVideoDef(cv.Device.Device, h, w)
 			if err != nil {
@@ -62,6 +76,8 @@ func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 			tc := make(chan bool)
 			vcs.SetTimerTarget(tc)
 			res.ifp.timer_source = tc
+		} else {
+			return fmt.Errorf("unsupported type \"%v\"", cv.Type)
 		}
 
 		res.converters = append(res.converters, c)
@@ -76,6 +92,18 @@ func (ifp *UserImageProvider) SetText(s func() string) {
 	for _, c := range current_config.converters {
 		if c.typ == pb.ConverterType_LABEL {
 			c.text = s
+		}
+	}
+}
+func (ifp *UserImageProvider) SetImage(x, y uint32, image image.Image) {
+	if current_config == nil {
+		return
+	}
+	for _, c := range current_config.converters {
+		if c.typ == pb.ConverterType_OVERLAY_IMAGE {
+			c.image = image
+			c.image_x = x
+			c.image_y = y
 		}
 	}
 }

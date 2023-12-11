@@ -323,6 +323,16 @@ func (e *echoServer) SetUserImage(ctx context.Context, req *pb.UserImageRequest)
 func (e *echoServer) GetCaptureDevices(ctx context.Context, req *common.Void) (*pb.CaptureDeviceList, error) {
 	return getCaptureDevices()
 }
+func (e *echoServer) DisplayOverlayImage(ctx context.Context, req *pb.OverlayImageRequest) (*common.Void, error) {
+	b := bytes.NewReader(req.Image)
+	img, _, err := image.Decode(b)
+	if err != nil {
+		return nil, err
+	}
+	ifp := switcher_impl.GetCurrentUserImageProvider()
+	ifp.SetImage(req.XPos, req.YPos, img)
+	return &common.Void{}, nil
+}
 
 func (e *echoServer) SetCountdown(ctx context.Context, req *pb.CountdownRequest) (*common.Void, error) {
 	ifp := switcher_impl.GetCurrentUserImageProvider()

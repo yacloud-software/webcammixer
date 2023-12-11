@@ -234,5 +234,13 @@ func (ifp *UserImageProvider) createImage() error {
 			return err
 		}
 	}
+	ifp.idleImage = dc.Image()
+	rawimage, err := converters.ConvertToRaw(ifp.idleImage)
+	if err != nil {
+		return err
+	}
+	ifp.idleImageRaw = rawimage.DefaultBytes()
+	ifp.idleImageLastFile = ""
+
 	return nil
 }

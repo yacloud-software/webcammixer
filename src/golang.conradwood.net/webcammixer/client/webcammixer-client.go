@@ -29,16 +29,16 @@ var (
 	echoClient   pb.WebCamMixerClient
 	dyntext      = flag.String("dyntext", "", "(L2) if set, set a dynamic text")
 	status       = flag.Bool("status", false, "if true get status")
-	display_text = flag.String("display_text", "", "(L3) display text for a few seconds. also see -overlay")
-	overlay      = flag.Bool("overlay", false, "if true display text overlaying on camera")
+	overlay_text = flag.String("overlay_text", "", "(L3) display text for a few seconds. also see -overlay")
+	overlay_img  = flag.String("overlay_img", "", "(L3) display image for a few seconds. also see -overlay")
 	none         = flag.String("help", "", "NOTE: (Ln) denotes the level of abstraction. use the highest possible for your usecase")
 )
 
 func main() {
 	flag.Parse()
 	var err error
-	if *display_text != "" {
-		utils.Bail("failed to display text", DisplayText())
+	if *overlay_text != "" || *overlay_img != "" {
+		utils.Bail("failed to overlay", Overlay())
 		goto end
 	}
 	if *status {
@@ -233,14 +233,28 @@ func Status() error {
 	return nil
 }
 
-func DisplayText() error {
+func Overlay() error {
 	ctx := authremote.Context()
-	req := &pb.DisplayTextRequest{
-		Text:           *display_text,
-		MaxSeconds:     5,
-		ContinueCamera: *overlay,
+
+	uir := &pb.UserImageRequest{}
+
+	if *overlay_text != "" {
+		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Type: pb.ConverterType_LABEL, Text: *overlay_text})
 	}
-	_, err := pb.GetWebCamMixerClient().DisplayText(ctx, req)
+	if *overlay_img != "" {
+		b, err := utils.ReadFile(*overlay_img)
+		if err != nil {
+			return err
+		}
+		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Type: pb.ConverterType_OVERLAY_IMAGE, OverlayImage: &pb.OverlayImageRequest{XPos: 100, YPos: 100, Image: b}})
+	}
+	if *videocam != "" {
+		cd := &pb.CaptureDevice{Device: *videocam}
+		uic := &pb.UserImageConverter{Type: pb.ConverterType_WEBCAM, Device: cd}
+		uir.Converters = append([]*pb.UserImageConverter{uic}, uir.Converters...)
+	}
+
+	_, err := pb.GetWebCamMixerClient().SetUserImage(ctx, uir)
 	if err != nil {
 		return err
 	}
