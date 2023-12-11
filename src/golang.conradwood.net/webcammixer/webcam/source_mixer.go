@@ -22,7 +22,7 @@ var (
 type VideoCamSource struct {
 	videoDeviceName string
 	lastFrame       *VideoCamFrame
-	frameChan       <-chan []byte
+	frameChan       <-chan []byte // this comes from the underlying v4l device
 	isRunning       bool
 	lock            sync.Mutex
 	cam             string
@@ -158,6 +158,7 @@ func (v *VideoCamSource) readerThread() {
 		must_convert = true
 		fmt.Printf("Warning - device %s must scale\n", v.videoDeviceName)
 	}
+	last_printed := time.Now()
 	stop_reason := ""
 	for {
 		frame := <-v.frameChan
@@ -167,7 +168,17 @@ func (v *VideoCamSource) readerThread() {
 			format:  pf,
 		}
 		if must_convert {
+			if pf.Height == v.height && pf.Width == v.width {
+				must_convert = false
+			}
+
+			st := time.Now()
 			vcf = v.convert_video_frame(vcf)
+			dur := time.Since(st)
+			if time.Since(last_printed) > time.Duration(10)*time.Second {
+				fmt.Printf("WARNING: converting video from %dx%d to %dx%d(took %d)\n", pf.Width, pf.Height, v.width, v.height, dur.Milliseconds())
+				last_printed = st
+			}
 		}
 		v.lastFrame = vcf
 		if len(frame) == 0 {

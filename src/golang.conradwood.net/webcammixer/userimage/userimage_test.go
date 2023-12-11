@@ -30,7 +30,7 @@ func TestLabeller(t *testing.T) {
 	for time.Since(started) < time.Duration(15)*time.Second {
 		time.Sleep(time.Duration(100) * time.Millisecond)
 		i++
-		img := uip.GetImage()
+		img := uip.conv_image
 		err := save_image(i, img)
 		if err != nil {
 			t.Fatalf("failed to save frame: %s", err)

@@ -236,22 +236,23 @@ func Status() error {
 func Overlay() error {
 	ctx := authremote.Context()
 
-	uir := &pb.UserImageRequest{}
+	uir := &pb.UserImageRequest{
+		ImageSource: &pb.ImageSource{FillColour: &pb.Colour{Red: 0, Green: 0, Blue: 255}},
+	}
+	if *videocam != "" {
+		cd := &pb.CaptureDevice{Device: *videocam}
+		uir.ImageSource = &pb.ImageSource{Device: cd}
+	}
 
 	if *overlay_text != "" {
-		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Type: pb.ConverterType_LABEL, Text: *overlay_text})
+		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Reference: "text", Type: pb.ConverterType_LABEL, Text: *overlay_text})
 	}
 	if *overlay_img != "" {
 		b, err := utils.ReadFile(*overlay_img)
 		if err != nil {
 			return err
 		}
-		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Type: pb.ConverterType_OVERLAY_IMAGE, OverlayImage: &pb.OverlayImageRequest{XPos: 100, YPos: 100, Image: b}})
-	}
-	if *videocam != "" {
-		cd := &pb.CaptureDevice{Device: *videocam}
-		uic := &pb.UserImageConverter{Type: pb.ConverterType_WEBCAM, Device: cd}
-		uir.Converters = append([]*pb.UserImageConverter{uic}, uir.Converters...)
+		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Reference: "image", Type: pb.ConverterType_OVERLAY_IMAGE, OverlayImage: &pb.OverlayImageRequest{XPos: 100, YPos: 100, Image: b}})
 	}
 
 	_, err := pb.GetWebCamMixerClient().SetUserImage(ctx, uir)

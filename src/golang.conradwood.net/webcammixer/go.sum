@@ -55,6 +55,8 @@ golang.conradwood.net/apis/registry v1.1.2520 h1:nd/veLrNYaKm9O1UY5+3XThkA9meTun
 golang.conradwood.net/apis/registry v1.1.2520/go.mod h1:khbamACV7T+NjntwJZIlmCEnyO/w6gDewaOMx3Uu9S8=
 golang.conradwood.net/go-easyops v0.1.22616 h1:m3h1fKDvn1PjIvk+iImgswi68VKzwWbJPIp5qi/QiXM=
 golang.conradwood.net/go-easyops v0.1.22616/go.mod h1:FVonA5DssCyFdKLtrlLM7na4zUs4NUtYsEV18faLFcg=
+golang.conradwood.net/go-easyops v0.1.22809 h1:xgHcMj/4lQGHgK47AmFQg/evgdoTZw8VuEbOErAb8Xs=
+golang.conradwood.net/go-easyops v0.1.22809/go.mod h1:FVonA5DssCyFdKLtrlLM7na4zUs4NUtYsEV18faLFcg=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/image v0.11.0 h1:ds2RoQvBvYTiJkwpSFDwCcDFNX7DqjL2WsUgTNk0Ooo=

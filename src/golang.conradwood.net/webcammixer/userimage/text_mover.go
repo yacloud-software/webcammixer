@@ -4,27 +4,42 @@ import (
 	"image/color"
 )
 
-const (
-	MIN_XPOS = 100
-	MAX_XPOS = 500
-	MIN_YPOS = 100
-	MAX_YPOS = 500
-)
+const ()
 
 type text_mover struct {
-	red       int
-	green     int
-	blue      int
-	cur_red   int
-	cur_green int
-	cur_blue  int
-	xpos      int
-	ypos      int
-	col_up    bool
-	xpos_up   bool
-	ypos_up   bool
+	min_xpos    int
+	max_xpos    int
+	min_ypos    int
+	max_ypos    int
+	red         int
+	green       int
+	blue        int
+	cur_red     int
+	cur_green   int
+	cur_blue    int
+	xpos        int
+	ypos        int
+	col_up      bool
+	xpos_up     bool
+	ypos_up     bool
+	text_height int
+	text_width  int
 }
 
+func NewTextMover(h, w uint32) *text_mover {
+	hi := int(h)
+	wi := int(w)
+	w_diff := int(float32(w) * 0.2)
+	h_diff := int(float32(h) * 0.2)
+	t := &text_mover{
+		min_xpos: w_diff,
+		max_xpos: wi - w_diff,
+		min_ypos: h_diff,
+		max_ypos: hi - h_diff,
+	}
+
+	return t
+}
 func (t *text_mover) Step() {
 	if t.col_up {
 		if t.cur_red >= 254 || t.cur_blue >= 254 || t.cur_green >= 254 {
@@ -47,21 +62,23 @@ func (t *text_mover) Step() {
 		}
 	}
 
-	if t.xpos <= MIN_XPOS {
+	max_xpos := t.max_xpos - t.text_width
+	max_ypos := t.max_ypos - t.text_height
+	if t.xpos <= t.min_xpos {
 		t.xpos_up = true
-		t.xpos = MIN_XPOS
+		t.xpos = t.min_xpos
 	}
-	if t.xpos >= MAX_XPOS {
+	if t.xpos >= max_xpos {
 		t.xpos_up = false
-		t.xpos = MAX_XPOS
+		t.xpos = max_xpos
 	}
-	if t.ypos <= MIN_YPOS {
+	if t.ypos <= t.min_ypos {
 		t.ypos_up = true
-		t.ypos = MIN_YPOS
+		t.ypos = t.min_ypos
 	}
-	if t.ypos >= MAX_YPOS {
+	if t.ypos >= max_ypos {
 		t.ypos_up = false
-		t.ypos = MAX_YPOS
+		t.ypos = max_ypos
 	}
 	if t.xpos_up {
 		t.xpos++

@@ -57,6 +57,8 @@ type Labeller struct {
 	fontname string
 	fontsize uint32
 	ctx      *gg.Context
+	height   int
+	width    int
 }
 
 func NewLabellerForCtx(ctx *gg.Context) *Labeller {
@@ -100,6 +102,11 @@ func (l *Labeller) GetImage() image.Image {
 	return l.img
 }
 
+// height,width, available AFTER paintlabels was called
+func (l *Labeller) GetMaxDimensions() (int, int) {
+	return l.height, l.width
+}
+
 // paint single label on to current image
 func (l *Labeller) PaintLabel(lt *LabelDef) error {
 	return l.PaintLabels([]*LabelDef{lt})
@@ -108,6 +115,7 @@ func (l *Labeller) PaintLabel(lt *LabelDef) error {
 // paint multiple labels onto current image (more efficient than single label)
 func (l *Labeller) PaintLabels(lt []*LabelDef) error {
 	dc := l.ctx
+	var w, h float64
 	for _, lab := range lt {
 
 		fs := lab.fontsize
@@ -136,8 +144,17 @@ func (l *Labeller) PaintLabels(lt []*LabelDef) error {
 		}
 		//                      dc.SetRGB255(255, 255, 255)
 		dc.DrawString(line, x, y)
+		cw, ch := dc.MeasureString(line)
+		if cw > w {
+			w = cw
+		}
+		if ch > h {
+			h = ch
+		}
 
 	}
+	l.width = int(w)
+	l.height = int(h)
 	l.img = dc.Image()
 
 	return nil
