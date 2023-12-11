@@ -54,6 +54,7 @@ func (ifp *UserImageProvider) SetTimerTarget(target chan bool) error {
 	return nil
 }
 
+// return height,width
 func (ifp *UserImageProvider) GetDimensions() (uint32, uint32) {
 	return ifp.height, ifp.width
 }

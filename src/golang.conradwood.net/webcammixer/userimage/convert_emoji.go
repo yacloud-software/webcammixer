@@ -15,14 +15,19 @@ import (
 )
 
 type emoji_converter struct {
+	c           *converter
 	emoji_utf8  string
 	image       image.Image
 	gotimage    bool
 	has_changed bool
+	curX        int
+	curY        int
+	finished    bool
 }
 
 func NewEmojiConverter(c *converter) *emoji_converter {
 	res := &emoji_converter{
+		c:           c,
 		has_changed: true,
 		emoji_utf8:  c.convdef.Emoji,
 	}
@@ -30,6 +35,9 @@ func NewEmojiConverter(c *converter) *emoji_converter {
 }
 
 func (c *emoji_converter) Modify(gctx *gg.Context) (bool, error) {
+	if c.finished {
+		return false, nil
+	}
 	if !c.gotimage {
 		img, err := get_emoji(c.emoji_utf8)
 		if err != nil {
@@ -38,11 +46,19 @@ func (c *emoji_converter) Modify(gctx *gg.Context) (bool, error) {
 		c.image = img
 		c.gotimage = true
 	}
-	gctx.DrawImage(c.image, 100, 100)
+	gctx.DrawImage(c.image, c.curX, 100)
 	c.has_changed = false
 	return true, nil
 }
 func (c *emoji_converter) HasChanged() bool {
+	if c.finished {
+		return false
+	}
+	c.curX++
+	_, w := c.c.cfg.ifp.GetDimensions()
+	if c.curX >= int(w) {
+		c.finished = true
+	}
 	return c.has_changed
 }
 
