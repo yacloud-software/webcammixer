@@ -39,31 +39,13 @@ func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 	if cfg.ImageSource == nil {
 		return fmt.Errorf("No source specified")
 	}
-	/* configure the source */
 	h, w := ifp.GetDimensions()
-	if cfg.ImageSource.Device != nil {
-		cv := cfg.ImageSource.Device
-		vcs, err := NewWebcamSource(ifp.sourceMixer, h, w, cv.Device)
-		if err != nil {
-			return err
-		}
-		res.image_source = vcs
-	} else if cfg.ImageSource.FillColour != nil {
-		vcs, err := NewColourSource(h, w, cfg.ImageSource.FillColour)
-		if err != nil {
-			return err
-		}
-		res.image_source = vcs
-	} else {
-		return fmt.Errorf("Unsupported image source")
-	}
 
 	/* configure the converters */
 	check_dups := make(map[string]bool) // check for duplicate references
 	for _, cv := range cfg.Converters {
 		_, exists := check_dups[cv.Reference]
 		if exists {
-			res.image_source.Close()
 			return fmt.Errorf("Duplicate reference \"%s\"", cv.Reference)
 		}
 		check_dups[cv.Reference] = true
@@ -85,11 +67,13 @@ func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 			s := cv.Text
 			fmt.Printf("Adding label with text \"%s\"\n", s)
 			c.text = func() string { return s }
+		} else if cv.Type == pb.ConverterType_EMOJI {
+			c.emoji = NewEmojiConverter(c)
+			//
 		} else if cv.Type == pb.ConverterType_EXT_BINARY {
 			// needs no config
 			ebin, err := GetExtBinary(DEFAULT_BINARY)
 			if err != nil {
-				res.image_source.Close()
 				return err
 			}
 			c.extbin = ebin
@@ -119,15 +103,32 @@ func (ifp *UserImageProvider) SetConfig(cfg *pb.UserImageRequest) error {
 				vcs.SetTimerTarget(tc)
 				res.ifp.timer_source = tc
 			*/
-			res.image_source.Close()
 			return fmt.Errorf("cannot yet use webcam as converter")
 		} else {
-			res.image_source.Close()
 			return fmt.Errorf("unsupported type \"%v\"", cv.Type)
 		}
 
 		res.converters = append(res.converters, c)
 	}
+
+	/* configure the source */
+	if cfg.ImageSource.Device != nil {
+		cv := cfg.ImageSource.Device
+		vcs, err := NewWebcamSource(ifp.sourceMixer, h, w, cv.Device)
+		if err != nil {
+			return err
+		}
+		res.image_source = vcs
+	} else if cfg.ImageSource.FillColour != nil {
+		vcs, err := NewColourSource(h, w, cfg.ImageSource.FillColour)
+		if err != nil {
+			return err
+		}
+		res.image_source = vcs
+	} else {
+		return fmt.Errorf("Unsupported image source")
+	}
+
 	current_config = res
 	res.ifp.NewSource(res.image_source)
 	return nil

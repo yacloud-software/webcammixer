@@ -36,6 +36,7 @@ const (
 var (
 	FONT_DIRS = []string{
 		"/usr/share/texlive/texmf-dist/fonts/truetype/public",
+		"/usr/share/fonts/truetype/",
 	}
 )
 
@@ -126,7 +127,7 @@ func (l *Labeller) PaintLabels(lt []*LabelDef) error {
 		if fn == "" {
 			fn = l.fontname
 		}
-		err := load_font(dc, fn, fs)
+		err := LoadFont(dc, fn, fs)
 		if err != nil {
 			return err
 		}
@@ -160,7 +161,7 @@ func (l *Labeller) PaintLabels(lt []*LabelDef) error {
 	return nil
 }
 
-func load_font(dc *gg.Context, fontname string, fontsize uint32) error {
+func LoadFont(dc *gg.Context, fontname string, fontsize uint32) error {
 	var err error
 	if fontname == "" {
 		fontname = DEFAULT_FONTNAME

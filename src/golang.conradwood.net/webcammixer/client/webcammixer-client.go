@@ -15,29 +15,30 @@ import (
 )
 
 var (
-	app          = flag.Bool("app", false, "start app")
-	repeat       = flag.Bool("repeat", false, "if true, repeat video selection")
-	idle_text    = flag.String("text", "", "(L1) set idle text")
-	countdown    = flag.Duration("countdown", 0, "set a countdown")
-	delay        = flag.Duration("delay", time.Duration(500)*time.Millisecond, "`delay` between images")
-	send_images  = flag.String("send_images", "", "(L1) send all pix in this `directory`")
-	send_frames  = flag.String("send_frames", "", "(L1) send all frames in this `directory`")
-	videocam     = flag.String("videodev", "", "if set, connect loopback to this `/dev/videoX`")
-	stopvideo    = flag.Bool("idle", false, "switch to idle source")
-	start_app    = flag.Bool("start_app", false, "start app in userspace")
-	cam          = flag.String("camera", "", "if non nil uses images server to stream cameras, e.g. cam://espcam1")
-	echoClient   pb.WebCamMixerClient
-	dyntext      = flag.String("dyntext", "", "(L2) if set, set a dynamic text")
-	status       = flag.Bool("status", false, "if true get status")
-	overlay_text = flag.String("overlay_text", "", "(L3) display text for a few seconds. also see -overlay")
-	overlay_img  = flag.String("overlay_img", "", "(L3) display image for a few seconds. also see -overlay")
-	none         = flag.String("help", "", "NOTE: (Ln) denotes the level of abstraction. use the highest possible for your usecase")
+	app           = flag.Bool("app", false, "start app")
+	repeat        = flag.Bool("repeat", false, "if true, repeat video selection")
+	idle_text     = flag.String("text", "", "(L1) set idle text")
+	countdown     = flag.Duration("countdown", 0, "set a countdown")
+	delay         = flag.Duration("delay", time.Duration(500)*time.Millisecond, "`delay` between images")
+	send_images   = flag.String("send_images", "", "(L1) send all pix in this `directory`")
+	send_frames   = flag.String("send_frames", "", "(L1) send all frames in this `directory`")
+	videocam      = flag.String("videodev", "", "if set, connect loopback to this `/dev/videoX`")
+	stopvideo     = flag.Bool("idle", false, "switch to idle source")
+	start_app     = flag.Bool("start_app", false, "start app in userspace")
+	cam           = flag.String("camera", "", "if non nil uses images server to stream cameras, e.g. cam://espcam1")
+	echoClient    pb.WebCamMixerClient
+	dyntext       = flag.String("dyntext", "", "(L2) if set, set a dynamic text")
+	status        = flag.Bool("status", false, "if true get status")
+	overlay_text  = flag.String("overlay_text", "", "(L3) display text for a few seconds. also see -overlay")
+	overlay_img   = flag.String("overlay_img", "", "(L3) display image for a few seconds. also see -overlay")
+	overlay_emoji = flag.String("overlay_emoji", "", "(L3) display emoji")
+	none          = flag.String("help", "", "NOTE: (Ln) denotes the level of abstraction. use the highest possible for your usecase")
 )
 
 func main() {
 	flag.Parse()
 	var err error
-	if *overlay_text != "" || *overlay_img != "" {
+	if *overlay_text != "" || *overlay_img != "" || *overlay_emoji != "" {
 		utils.Bail("failed to overlay", Overlay())
 		goto end
 	}
@@ -246,6 +247,10 @@ func Overlay() error {
 
 	if *overlay_text != "" {
 		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Reference: "text", Type: pb.ConverterType_LABEL, Text: *overlay_text})
+	}
+	if *overlay_emoji != "" {
+		str := *overlay_emoji
+		uir.Converters = append(uir.Converters, &pb.UserImageConverter{Reference: "emoji", Type: pb.ConverterType_EMOJI, Emoji: str})
 	}
 	if *overlay_img != "" {
 		b, err := utils.ReadFile(*overlay_img)

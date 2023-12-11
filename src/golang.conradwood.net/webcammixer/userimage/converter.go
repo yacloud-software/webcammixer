@@ -28,6 +28,7 @@ type converter struct {
 	image_y            uint32
 	input_has_changed  bool // reset by renderer and set if text/image are changed
 	last_text_rendered *last_text
+	emoji              *emoji_converter
 }
 
 // what was last text like? (to compute input_has_changed)
@@ -47,6 +48,8 @@ func (c *converter) Modify(gctx *gg.Context) (bool, error) {
 		return c.modify_through_extbin(gctx)
 	} else if c.typ == pb.ConverterType_OVERLAY_IMAGE {
 		return c.modify_image(gctx)
+	} else if c.typ == pb.ConverterType_EMOJI {
+		return c.emoji.Modify(gctx)
 	} else {
 		return false, fmt.Errorf("cannot modify \"%v\" yet", c.typ)
 	}
@@ -61,6 +64,8 @@ func (c *converter) HasChanged() bool {
 		return true
 	} else if c.typ == pb.ConverterType_OVERLAY_IMAGE {
 		return c.has_changed_image()
+	} else if c.typ == pb.ConverterType_EMOJI {
+		return c.emoji.HasChanged()
 	} else {
 		return false
 	}

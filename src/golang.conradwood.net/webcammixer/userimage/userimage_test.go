@@ -18,6 +18,14 @@ const (
 )
 
 func TestLabeller(t *testing.T) {
+	//img, err := get_emoji("test \U0001f600")
+	//	img, err := get_emoji("\U0001f600")
+	img, err := get_emoji("\U0001f3f4\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f")
+	if err != nil {
+		t.Fatalf("failed to get well-known emoji: %s", err)
+		return
+	}
+	save_image(0, img)
 	uip := NewUserImageProvider(webcam.NewSourceMixer(), WIDTH, HEIGHT)
 	uip.SetConfig(&pb.UserImageRequest{
 		Converters: []*pb.UserImageConverter{
