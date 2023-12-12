@@ -132,7 +132,7 @@ func (v *VideoCamSource) Activate(height, width uint32) error {
 		}
 	}
 	v.pf = v.wci.GetActualPixelFormat()
-
+	v.keep_running = true
 	go v.readerThread()
 	go v.postProcessingThread()
 	fmt.Printf("Opened device \"%s\"...\n", v.videoDeviceName)
@@ -162,7 +162,9 @@ func (v *VideoCamSource) readerThread() {
 	defer func() {
 		v.threadRunning = false
 	}()
-
+	if !v.keep_running {
+		fmt.Printf("Possible bug - readerthread webcam started, but asked to exit immediately\n")
+	}
 	for v.keep_running {
 		frame := <-v.frameChan
 		if len(frame) == 0 {
@@ -226,10 +228,17 @@ func (v *VideoCamSource) postProcessingThread() {
 		c := v.onNewFrame
 		if c != nil {
 			v.lastFrameUsed = time.Now()
-			c <- true
+			select {
+			case c <- true:
+				//
+			default:
+				//
+				fmt.Printf("Video consumer for %s set, but unavailable!\n", v.videoDeviceName)
+			}
 		}
 		if time.Since(v.lastFrameUsed) >= *webcam_idle_timeout {
 			// no longer in use (no listener for the frames...)
+			fmt.Printf("Webcam %s stopped - no listener for %0.1fs\n", v.videoDeviceName, time.Since(v.lastFrameUsed).Seconds())
 			v.keep_running = false
 		}
 		rates.Inc("v4l2-postprocessor")

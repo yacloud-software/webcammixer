@@ -24,6 +24,7 @@ type ImageSource interface {
 	GetTimingChannel() chan bool
 	GetFrame() ([]byte, error)
 	Close()
+	Activate()
 }
 type config struct {
 	image_source ImageSource

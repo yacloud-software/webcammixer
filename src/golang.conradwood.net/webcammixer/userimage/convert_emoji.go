@@ -12,6 +12,11 @@ import (
 	//	"golang.conradwood.net/webcammixer/labeller"
 	"image"
 	// "image/draw"
+	"flag"
+)
+
+var (
+	emoji_speed = flag.Int("emoji_speed", 7, "number of pixels to move per frame")
 )
 
 type emoji_converter struct {
@@ -47,14 +52,14 @@ func (c *emoji_converter) Modify(gctx *gg.Context) (bool, error) {
 		c.gotimage = true
 	}
 	gctx.DrawImage(c.image, c.curX, 100)
-	c.has_changed = false
+	c.has_changed = true
 	return true, nil
 }
 func (c *emoji_converter) HasChanged() bool {
 	if c.finished {
 		return false
 	}
-	c.curX++
+	c.curX = c.curX + *emoji_speed
 	_, w := c.c.cfg.ifp.GetDimensions()
 	if c.curX >= int(w) {
 		c.finished = true

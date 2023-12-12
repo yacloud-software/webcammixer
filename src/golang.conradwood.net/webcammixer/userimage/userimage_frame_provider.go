@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	mod_sleep  = flag.Duration("user_modify_sleep", time.Duration(200)*time.Millisecond, "minimum time the modifier loop should take")
+	mod_sleep  = flag.Duration("user_modify_sleep", time.Duration(00)*time.Millisecond, "minimum time the modifier loop should take")
 	idle_sleep = flag.Duration("user_sleep", time.Duration(200)*time.Millisecond, "time to sleep between sending idle image updates")
 )
 
@@ -31,7 +31,9 @@ type UserImageProvider struct {
 	conv_image               image.Image // last iamge coming out of converter-chain (same as frame)
 	notify                   chan bool
 	merge_chan               chan bool
-	converters_had_no_impact bool // set to true if no converter had any impact (produced an image of sort)
+	modify_chan              chan bool // fed by video source, consumed by modify loop
+	converters_had_no_impact bool      // set to true if no converter had any impact (produced an image of sort)
+	last_printed_modify      time.Time
 }
 
 // blocks and provides "idle" frame
@@ -41,6 +43,7 @@ func NewUserImageProvider(sm interfaces.SourceMixer, h, w uint32) *UserImageProv
 		width:       w,
 		height:      h,
 		merge_chan:  make(chan bool, 30),
+		modify_chan: make(chan bool, 30),
 	}
 	return ifp
 }
@@ -67,10 +70,7 @@ func (ifp *UserImageProvider) Run() error {
 	fmt.Printf("Starting userframe provider with dimensions %dx%d...\n", w, h)
 	go ifp.modifier_loop()
 	go ifp.merge_loop()
-	for {
-		if ifp.stop_requested {
-			break
-		}
+	for !ifp.stop_requested {
 		src := ifp.imageSource
 		if src == nil {
 			time.Sleep(*idle_sleep)
@@ -79,10 +79,13 @@ func (ifp *UserImageProvider) Run() error {
 
 		select {
 		case <-time.After(*idle_sleep):
-		//
+			rates.Inc("videosource_timeout")
 		case <-src.GetTimingChannel():
+			rates.Inc("videosource_newframe")
 		}
-		rates.Inc("videosource")
+		if len(ifp.modify_chan) < 10 {
+			ifp.modify_chan <- true
+		}
 		if len(ifp.merge_chan) < 10 {
 			ifp.merge_chan <- true
 		}
@@ -98,7 +101,6 @@ func (ifp *UserImageProvider) Run() error {
 // this runs asynchronous to merge the update(s) with the source frames and send them to loop back device
 func (ifp *UserImageProvider) merge_loop() {
 	for !ifp.stop_requested {
-		rates.Inc("merge")
 		<-ifp.merge_chan
 		src := ifp.imageSource
 		if src == nil {
@@ -134,18 +136,23 @@ func (ifp *UserImageProvider) merge_loop() {
 }
 
 // this runs asynchronous to generate the update(s), e.g. text/image
+// it _does_ however use a channel to not run any faster than the video source
 func (ifp *UserImageProvider) modifier_loop() {
 	var last_run time.Time
 	for !ifp.stop_requested {
+		<-ifp.modify_chan
+
 		min_wait := *mod_sleep
-		diff := time.Since(last_run)
-		if diff < min_wait {
-			time.Sleep(min_wait - diff)
+		if min_wait > 0 {
+			diff := time.Since(last_run)
+			if diff < min_wait {
+				time.Sleep(min_wait - diff)
+			}
 		}
+
 		var err error
 		err = ifp.createImage()
 		last_run = time.Now()
-		rates.Inc("modify")
 		if err != nil {
 			fmt.Printf("failed to render idle text: %s\n", err)
 			time.Sleep(time.Duration(1500) * time.Millisecond)
@@ -163,10 +170,13 @@ func (ifp *UserImageProvider) NewSource(is ImageSource) {
 	ifp.conv_frame = nil
 	ifp.conv_image = nil
 	ifp.imageSource = is
+	is.Activate()
 }
 
 func (ifp *UserImageProvider) Stop() {
 	ifp.stop_requested = true
+	ifp.modify_chan <- true
+	ifp.merge_chan <- true
 }
 
 func (ifp *UserImageProvider) GetID() string {
@@ -183,19 +193,13 @@ func (ifp *UserImageProvider) GetFrame() ([]byte, error) {
 func (ifp *UserImageProvider) createImage() error {
 	cc := current_config
 	if cc == nil {
+		ifp.converters_had_no_impact = true
 		return nil
 	}
 
 	h, w := ifp.GetDimensions()
 	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
-	/*
-		//	draw.Draw(img, img.Bounds(), &image.Uniform{col}, image.ZP, draw.Src)
-		frame, err := ifp.GetFrame()
-		if err != nil {
-			return err
-		}
-		img := converters.ConvertYUV422ToImage(frame, int(h), int(w))
-	*/
+
 	dc := gg.NewContextForImage(img)
 	has_changed := false
 	if len(ifp.conv_frame) == 0 && ifp.conv_image == nil {
@@ -208,6 +212,7 @@ func (ifp *UserImageProvider) createImage() error {
 		}
 	}
 	if !has_changed {
+		ifp.printModify("modifiers have not changed (no_impact=%v)\n", ifp.converters_had_no_impact)
 		return nil
 	}
 	had_impact := false
@@ -223,6 +228,7 @@ func (ifp *UserImageProvider) createImage() error {
 	}
 	if !had_impact {
 		ifp.converters_had_no_impact = true
+		ifp.printModify("modifiers have no impact\n")
 		return nil
 	}
 	ifp.converters_had_no_impact = false
@@ -233,9 +239,17 @@ func (ifp *UserImageProvider) createImage() error {
 	}
 	ifp.conv_frame = rawimage.DefaultBytes()
 	ifp.conv_image = new_img
+	rates.Inc("modify")
 	return nil
 }
-
+func (ifp *UserImageProvider) printModify(format string, args ...interface{}) {
+	if time.Since(ifp.last_printed_modify) < time.Duration(2)*time.Second {
+		return
+	}
+	ifp.last_printed_modify = time.Now()
+	s := fmt.Sprintf(format, args...)
+	fmt.Printf("[modify]%s", s)
+}
 func (ifp *UserImageProvider) merge_frame_with_conv(srcframe []byte) {
 	if len(srcframe) == 0 {
 		return
@@ -245,17 +259,27 @@ func (ifp *UserImageProvider) merge_frame_with_conv(srcframe []byte) {
 		// no conversion (yet)
 		return
 	}
-	if len(ifp.conv_frame) != 0 {
+	conv_frame := ifp.conv_frame
+	conv_image := ifp.conv_image
+	if len(conv_frame) != 0 {
 		// merge frame2frame
 	}
-	if ifp.conv_image == nil {
+	if conv_image == nil {
+		ifp.frame = srcframe
+		return
+	}
+	if conv_frame == nil {
 		ifp.frame = srcframe
 		return
 	}
 	h, w := ifp.GetDimensions()
 	img := converters.ConvertYUV422ToImage(srcframe, int(h), int(w))
+	if img == nil {
+		ifp.frame = srcframe
+		return
+	}
 	gctx := gg.NewContextForImage(img)
-	gctx.DrawImage(ifp.conv_image, 0, 0)
+	gctx.DrawImage(conv_image, 0, 0)
 	img = gctx.Image()
 	rawimage, err := converters.ConvertToRaw(img)
 	if err != nil {
@@ -263,4 +287,5 @@ func (ifp *UserImageProvider) merge_frame_with_conv(srcframe []byte) {
 		return
 	}
 	ifp.frame = rawimage.DefaultBytes()
+	rates.Inc("merge")
 }

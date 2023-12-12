@@ -11,18 +11,27 @@ import (
 var (
 	lock             sync.Mutex
 	last_printed     time.Time
-	rate_calculators = make(map[string]utils.RateCalculator)
+	rate_calculators = make(map[string]*name_map)
 )
+
+type name_map struct {
+	rc utils.RateCalculator
+	sa *utils.SlidingAverage
+}
 
 func Inc(name string) {
 	lock.Lock()
-	rc, found := rate_calculators[name]
+	nm, found := rate_calculators[name]
 	if !found {
-		rc = utils.NewRateCalculator(name)
-		rate_calculators[name] = rc
+		nm = &name_map{
+			rc: utils.NewRateCalculator(name),
+			sa: &utils.SlidingAverage{},
+		}
+		rate_calculators[name] = nm
 	}
 	lock.Unlock()
-	rc.Add(1)
+	nm.rc.Add(1)
+	nm.sa.Add(1, 1)
 	Print()
 }
 func Print() {
@@ -33,7 +42,7 @@ func Print() {
 
 	var x []string
 	lock.Lock()
-	rc_copy := make(map[string]utils.RateCalculator)
+	rc_copy := make(map[string]*name_map)
 	for k, v := range rate_calculators {
 		x = append(x, k)
 		rc_copy[k] = v
@@ -46,8 +55,10 @@ func Print() {
 	deli := ""
 	for _, n := range x {
 		rc := rc_copy[n]
-		s = s + deli + fmt.Sprintf("Rate \"%s\"=%0.1f", n, rc.Rate())
+		f1 := rc.rc.Rate()
+		s = s + deli + fmt.Sprintf("Rate \"%s\"=%0.1f", n, f1)
 		deli = ", "
+		rc.rc.Reset()
 	}
 	fmt.Println(s)
 }

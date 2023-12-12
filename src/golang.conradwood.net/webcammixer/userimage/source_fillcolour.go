@@ -24,7 +24,6 @@ func NewColourSource(h, w uint32, colour *pb.Colour) (*fillcoloursource, error) 
 		return nil, err
 	}
 	res.frame = rawimg.DefaultBytes()
-	go res.timer_loop()
 	return res, nil
 }
 func (src *fillcoloursource) timer_loop() {
@@ -32,6 +31,9 @@ func (src *fillcoloursource) timer_loop() {
 		time.Sleep(time.Duration(100) * time.Millisecond)
 		src.c <- true
 	}
+}
+func (src *fillcoloursource) Activate() {
+	go src.timer_loop()
 }
 func (src *fillcoloursource) Close() {
 	src.stop = true
