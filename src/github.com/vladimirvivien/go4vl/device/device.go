@@ -32,7 +32,6 @@ func Open(path string, options ...Option) (*Device, error) {
 	fd, err := v4l2.OpenDevice(path, sys.O_RDWR, 0)
 	//fd, err := v4l2.OpenDevice(path, sys.O_RDWR|sys.O_NONBLOCK, 0)
 	if err != nil {
-		panic("not open")
 		return nil, fmt.Errorf("device open (1): %w", err)
 	}
 	//fmt.Printf("Device %s open (%v)\n", path, fd)

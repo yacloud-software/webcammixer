@@ -7,8 +7,8 @@ import (
 	"golang.conradwood.net/apis/images"
 	//	pb "golang.conradwood.net/apis/webcammixer"
 	"golang.conradwood.net/go-easyops/authremote"
-	"golang.conradwood.net/webcammixer/converters"
-	"golang.conradwood.net/webcammixer/loopback"
+	"golang.conradwood.net/webcammixer/v1/converters"
+	"golang.conradwood.net/webcammixer/v1/loopback"
 	"io"
 	"time"
 )

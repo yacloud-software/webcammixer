@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/vladimirvivien/go4vl/v4l2"
 	"golang.conradwood.net/go-easyops/utils"
-	"golang.conradwood.net/webcammixer/converters"
-	"golang.conradwood.net/webcammixer/interfaces"
-	"golang.conradwood.net/webcammixer/rates"
+	"golang.conradwood.net/webcammixer/v1/converters"
+	"golang.conradwood.net/webcammixer/v1/interfaces"
+	"golang.conradwood.net/webcammixer/v1/rates"
 	"golang.org/x/image/draw"
 	"image"
 	"sync"
@@ -133,6 +133,7 @@ func (v *VideoCamSource) Activate(height, width uint32) error {
 	}
 	v.pf = v.wci.GetActualPixelFormat()
 	v.keep_running = true
+	v.lastFrameUsed = time.Now()
 	go v.readerThread()
 	go v.postProcessingThread()
 	fmt.Printf("Opened device \"%s\"...\n", v.videoDeviceName)
@@ -218,7 +219,7 @@ func (v *VideoCamSource) postProcessingThread() {
 			vcf = v.convert_video_frame(vcf)
 			dur := time.Since(st)
 			if time.Since(last_printed) > time.Duration(10)*time.Second {
-				fmt.Printf("WARNING: converting video from %dx%d to %dx%d(took %d)\n", v.pf.Width, v.pf.Height, v.width, v.height, dur.Milliseconds())
+				fmt.Printf("WARNING: %s converting video from %dx%d to %dx%d(took %d)\n", v.videoDeviceName, v.pf.Width, v.pf.Height, v.width, v.height, dur.Milliseconds())
 				last_printed = st
 			}
 		}
@@ -227,9 +228,9 @@ func (v *VideoCamSource) postProcessingThread() {
 		//fmt.Printf("Got frame from device %s.\n", v.videoDeviceName)
 		c := v.onNewFrame
 		if c != nil {
-			v.lastFrameUsed = time.Now()
 			select {
 			case c <- true:
+				v.lastFrameUsed = time.Now()
 				//
 			default:
 				//

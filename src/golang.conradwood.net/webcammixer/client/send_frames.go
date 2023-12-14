@@ -7,7 +7,7 @@ import (
 	pb "golang.conradwood.net/apis/webcammixer"
 	"golang.conradwood.net/go-easyops/authremote"
 	"golang.conradwood.net/go-easyops/utils"
-	"golang.conradwood.net/webcammixer/converters"
+	"golang.conradwood.net/webcammixer/v1/converters"
 	"golang.org/x/image/draw"
 	"image"
 	_ "image/jpeg"

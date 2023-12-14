@@ -1,8 +1,8 @@
 package interfaces
 
 import (
-	"golang.conradwood.net/webcammixer/loopback"
-	"golang.conradwood.net/webcammixer/providers"
+	"golang.conradwood.net/webcammixer/v1/loopback"
+	"golang.conradwood.net/webcammixer/v1/providers"
 )
 
 type MixerApp interface {

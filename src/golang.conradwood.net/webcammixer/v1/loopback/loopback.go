@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/vladimirvivien/go4vl/device"
 	"github.com/vladimirvivien/go4vl/v4l2"
-	"golang.conradwood.net/webcammixer/defaults"
+	"golang.conradwood.net/webcammixer/v1/defaults"
 	sys "golang.org/x/sys/unix"
 	"sync"
 	"time"

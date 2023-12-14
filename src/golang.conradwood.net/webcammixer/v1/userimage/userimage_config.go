@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/fogleman/gg"
 	pb "golang.conradwood.net/apis/webcammixer"
-	// "golang.conradwood.net/webcammixer/labeller"
+	// "golang.conradwood.net/webcammixer/v1/labeller"
 	"image"
 )
 
@@ -21,6 +21,7 @@ type ext_converter interface {
 	Modify(gg.Context) error
 }
 type ImageSource interface {
+	String() string
 	GetTimingChannel() chan bool
 	GetFrame() ([]byte, error)
 	Close()

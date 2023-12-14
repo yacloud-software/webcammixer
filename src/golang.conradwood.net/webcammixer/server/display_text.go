@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"golang.conradwood.net/apis/common"
 	pb "golang.conradwood.net/apis/webcammixer"
-	"golang.conradwood.net/webcammixer/loopback"
+	"golang.conradwood.net/webcammixer/v1/loopback"
 	"strings"
 	"time"
 )

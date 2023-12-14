@@ -4,14 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"github.com/fogleman/gg"
-	"golang.conradwood.net/webcammixer/converters"
-	"golang.conradwood.net/webcammixer/interfaces"
-	"golang.conradwood.net/webcammixer/rates"
+	"golang.conradwood.net/webcammixer/v1/converters"
+	"golang.conradwood.net/webcammixer/v1/interfaces"
+	"golang.conradwood.net/webcammixer/v1/rates"
 	"image"
 	//	"image/draw"
 	//	"image/color"
 	_ "image/jpeg"
 	_ "image/png"
+	"sync"
 	"time"
 )
 
@@ -21,6 +22,7 @@ var (
 )
 
 type UserImageProvider struct {
+	runlock                  *sync.Mutex
 	imageSource              ImageSource
 	sourceMixer              interfaces.SourceMixer
 	stop_requested           bool
@@ -34,11 +36,14 @@ type UserImageProvider struct {
 	modify_chan              chan bool // fed by video source, consumed by modify loop
 	converters_had_no_impact bool      // set to true if no converter had any impact (produced an image of sort)
 	last_printed_modify      time.Time
+	wg                       *sync.WaitGroup
 }
 
 // blocks and provides "idle" frame
 func NewUserImageProvider(sm interfaces.SourceMixer, h, w uint32) *UserImageProvider {
 	ifp := &UserImageProvider{
+		runlock:     &sync.Mutex{},
+		wg:          &sync.WaitGroup{},
 		sourceMixer: sm,
 		width:       w,
 		height:      h,
@@ -63,6 +68,10 @@ func (ifp *UserImageProvider) GetDimensions() (uint32, uint32) {
 }
 
 func (ifp *UserImageProvider) Run() error {
+	ifp.runlock.Lock()
+	defer ifp.runlock.Unlock()
+	ifp.wg.Add(1)
+	defer ifp.wg.Done()
 	if ifp == nil {
 		return fmt.Errorf("not running empty user image provider")
 	}
@@ -80,6 +89,8 @@ func (ifp *UserImageProvider) Run() error {
 		select {
 		case <-time.After(*idle_sleep):
 			rates.Inc("videosource_timeout")
+			fmt.Printf("WARNING: videosource %s timeout!\n", src.String())
+			src.Activate()
 		case <-src.GetTimingChannel():
 			rates.Inc("videosource_newframe")
 		}
@@ -92,7 +103,6 @@ func (ifp *UserImageProvider) Run() error {
 	}
 	fmt.Printf("UserImageProvider stopped\n")
 	if ifp.imageSource != nil {
-		ifp.imageSource.Close()
 		ifp.imageSource = nil
 	}
 	return nil
@@ -100,6 +110,8 @@ func (ifp *UserImageProvider) Run() error {
 
 // this runs asynchronous to merge the update(s) with the source frames and send them to loop back device
 func (ifp *UserImageProvider) merge_loop() {
+	ifp.wg.Add(1)
+	defer ifp.wg.Done()
 	for !ifp.stop_requested {
 		<-ifp.merge_chan
 		src := ifp.imageSource
@@ -138,6 +150,8 @@ func (ifp *UserImageProvider) merge_loop() {
 // this runs asynchronous to generate the update(s), e.g. text/image
 // it _does_ however use a channel to not run any faster than the video source
 func (ifp *UserImageProvider) modifier_loop() {
+	ifp.wg.Add(1)
+	defer ifp.wg.Done()
 	var last_run time.Time
 	for !ifp.stop_requested {
 		<-ifp.modify_chan
@@ -163,8 +177,11 @@ func (ifp *UserImageProvider) modifier_loop() {
 }
 
 func (ifp *UserImageProvider) NewSource(is ImageSource) {
-	if ifp.imageSource != nil {
-		ifp.imageSource.Close()
+	fmt.Printf("New source: %s\n", is.String())
+	s := ifp.imageSource
+	if s != nil {
+		ifp.imageSource = nil
+		s.Close()
 	}
 	ifp.frame = nil
 	ifp.conv_frame = nil
@@ -174,9 +191,15 @@ func (ifp *UserImageProvider) NewSource(is ImageSource) {
 }
 
 func (ifp *UserImageProvider) Stop() {
+	s := ifp.imageSource
+	if s != nil {
+		ifp.imageSource = nil
+		s.Close()
+	}
 	ifp.stop_requested = true
 	ifp.modify_chan <- true
 	ifp.merge_chan <- true
+	ifp.wg.Wait()
 }
 
 func (ifp *UserImageProvider) GetID() string {

@@ -2,16 +2,17 @@ package userimage
 
 import (
 	"fmt"
-	"golang.conradwood.net/webcammixer/interfaces"
+	"golang.conradwood.net/webcammixer/v1/interfaces"
 )
 
 type webcamsource struct {
 	vd      interfaces.VideoCamSource
+	dev     string
 	vd_chan chan bool
 }
 
 func NewWebcamSource(sourceMixer interfaces.SourceMixer, h, w uint32, dev string) (*webcamsource, error) {
-	res := &webcamsource{vd_chan: make(chan bool, 50)}
+	res := &webcamsource{vd_chan: make(chan bool, 50), dev: dev}
 	vd, err := sourceMixer.SourceActivateVideoDef(dev, h, w)
 	if err != nil {
 		return nil, err
@@ -33,4 +34,7 @@ func (src *webcamsource) GetTimingChannel() chan bool {
 func (src *webcamsource) Close() {
 	fmt.Printf("Webcamsource closed\n")
 	src.vd.SetTimerTarget(nil)
+}
+func (src *webcamsource) String() string {
+	return fmt.Sprintf("webcam://%s", src.dev)
 }

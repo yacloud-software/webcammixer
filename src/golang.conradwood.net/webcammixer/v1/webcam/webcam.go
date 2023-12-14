@@ -6,7 +6,7 @@ import (
 	"github.com/vladimirvivien/go4vl/device"
 	"github.com/vladimirvivien/go4vl/v4l2"
 	"golang.conradwood.net/go-easyops/utils"
-	"golang.conradwood.net/webcammixer/defaults"
+	"golang.conradwood.net/webcammixer/v1/defaults"
 	"sort"
 )
 

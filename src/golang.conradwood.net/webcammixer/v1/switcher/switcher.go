@@ -2,8 +2,8 @@ package switcher
 
 import (
 	"fmt"
-	"golang.conradwood.net/webcammixer/interfaces"
-	"golang.conradwood.net/webcammixer/userimage"
+	"golang.conradwood.net/webcammixer/v1/interfaces"
+	"golang.conradwood.net/webcammixer/v1/userimage"
 	"sync"
 )
 
@@ -43,6 +43,7 @@ func (sw *switcher) get_user_image_provider(x, y uint32) *userimage.UserImagePro
 	if def_user_image != nil {
 		h, w := def_user_image.GetDimensions()
 		if w == x && h == y {
+			fmt.Printf("Reusing current image provider\n")
 			return def_user_image
 		}
 		def_user_image.Stop()
