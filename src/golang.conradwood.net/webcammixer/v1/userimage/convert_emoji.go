@@ -82,7 +82,7 @@ func get_emoji(utf8 string) (image.Image, error) {
 	}
 	png_data := em.Emoji.PNG
 
-	ge := &images.EmojiRequest{Unicode: em.Emoji.Def.Unicode, Size: 80}
+	ge := &images.EmojiRequest{Unicode: em.Emoji.Def.Unicode, Size: 160}
 	emm, err := images.GetImagesClient().GetEmoji(ctx, ge)
 	if err != nil {
 		fmt.Printf("Failed to get emoji, size %d\n", ge.Size)
