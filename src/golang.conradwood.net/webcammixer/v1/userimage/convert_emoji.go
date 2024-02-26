@@ -17,6 +17,7 @@ import (
 
 var (
 	emoji_speed = flag.Int("emoji_speed", 7, "number of pixels to move per frame")
+	emoji_size  = flag.Int("emoji_size", 160, "size of overlay emoji")
 )
 
 type emoji_converter struct {
@@ -82,7 +83,7 @@ func get_emoji(utf8 string) (image.Image, error) {
 	}
 	png_data := em.Emoji.PNG
 
-	ge := &images.EmojiRequest{Unicode: em.Emoji.Def.Unicode, Size: 160}
+	ge := &images.EmojiRequest{Unicode: em.Emoji.Def.Unicode, Size: uint32(*emoji_size)}
 	emm, err := images.GetImagesClient().GetEmoji(ctx, ge)
 	if err != nil {
 		fmt.Printf("Failed to get emoji, size %d\n", ge.Size)

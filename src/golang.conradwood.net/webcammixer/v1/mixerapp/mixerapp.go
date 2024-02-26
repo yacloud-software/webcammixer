@@ -1,7 +1,9 @@
 package mixerapp
 
 import (
+	"flag"
 	"fmt"
+	"golang.conradwood.net/go-easyops/linux"
 	"golang.conradwood.net/go-easyops/utils"
 	"golang.conradwood.net/webcammixer/v1/defaults"
 	"golang.conradwood.net/webcammixer/v1/interfaces"
@@ -14,6 +16,7 @@ import (
 )
 
 var (
+	open_close_hook = flag.String("usage_hook", "", "if set to a `filename` will invoke that executable with a single argument (true|false) if videodev changes from being used to not being used and vice versa")
 	is_running_lock sync.RWMutex
 	loopdev         *loopback.LoopBackDevice
 	defidle         *providers.IdleFrameProvider
@@ -133,6 +136,7 @@ func (ma *MixerApp) GetLoopDev() *loopback.LoopBackDevice {
 func (ma *MixerApp) idle_detect_thread(l *loopback.LoopBackDevice) {
 	var last_restored time.Time
 	last_ref_count := 0
+	last_status := 0 // 0==undef, 1=open, 2=idle
 	for {
 		time.Sleep(time.Duration(100) * time.Millisecond)
 
@@ -144,9 +148,18 @@ func (ma *MixerApp) idle_detect_thread(l *loopback.LoopBackDevice) {
 		}
 		ls := loopback.Status()
 		if ls.RefCount >= 2 {
+			if last_status != 1 {
+				ma.loopback_open_status_changed(true)
+			}
+			last_status = 1
 			last_ref_count = ls.RefCount
 		} else {
 			if time.Since(ls.LastChange) > time.Duration(10)*time.Second {
+				if last_status != 2 {
+					ma.loopback_open_status_changed(false)
+				}
+				last_status = 2
+
 				if last_ref_count != ls.RefCount {
 					last_ref_count = ls.RefCount
 					reason = "kernel module not in use"
@@ -164,6 +177,26 @@ func (ma *MixerApp) idle_detect_thread(l *loopback.LoopBackDevice) {
 			last_restored = time.Now()
 		}
 	}
+}
+
+// called if at  least one application uses it or if all apps stopped using it
+func (ma *MixerApp) loopback_open_status_changed(is_used bool) {
+	oc := *open_close_hook
+	if oc == "" {
+		return
+	}
+	go func(b bool) {
+		l := linux.New()
+		s := "false"
+		if b {
+			s = "true"
+		}
+		com := []string{oc, s}
+		r, err := l.SafelyExecute(com, nil)
+		if err != nil {
+			fmt.Printf("executable %s failed: %s\n%s\n", oc, err, string(r))
+		}
+	}(is_used)
 }
 
 func (ma *MixerApp) DefaultIdleFrameProvider() *providers.IdleFrameProvider {
