@@ -1,6 +1,8 @@
 module golang.conradwood.net/webcammixer
 
-go 1.18
+go 1.21
+
+toolchain go1.22.2
 
 require (
 	github.com/fogleman/gg v1.3.0
@@ -27,6 +29,7 @@ require (
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
+	gocv.io/x/gocv v0.38.0 // indirect
 	golang.conradwood.net/apis/auth v1.1.2728 // indirect
 	golang.conradwood.net/apis/autodeployer v1.1.2728 // indirect
 	golang.conradwood.net/apis/deploymonkey v1.1.2728 // indirect
