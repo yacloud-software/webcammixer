@@ -11,7 +11,7 @@ require (
 	golang.conradwood.net/apis/common v1.1.3231
 	golang.conradwood.net/apis/images v1.1.3231
 	golang.conradwood.net/apis/webcammixer v0.0.0-00010101000000-000000000000
-	golang.conradwood.net/go-easyops v0.1.30646
+	golang.conradwood.net/go-easyops v0.1.30764
 	golang.org/x/image v0.20.0
 	golang.org/x/sys v0.25.0
 	golang.org/x/term v0.24.0
