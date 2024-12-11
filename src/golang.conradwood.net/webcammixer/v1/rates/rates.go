@@ -2,10 +2,11 @@ package rates
 
 import (
 	"fmt"
-	"golang.conradwood.net/go-easyops/utils"
 	"sort"
 	"sync"
 	"time"
+
+	"golang.conradwood.net/go-easyops/utils"
 )
 
 var (
@@ -25,7 +26,7 @@ func Inc(name string) {
 	if !found {
 		nm = &name_map{
 			rc: utils.NewRateCalculator(name),
-			sa: &utils.SlidingAverage{},
+			sa: utils.NewSlidingAverage(),
 		}
 		rate_calculators[name] = nm
 	}
